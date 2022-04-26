@@ -1,6 +1,6 @@
 from concurrent.futures import Future
 from enum import Enum
-from typing import Callable, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import agate
 import dbt.exceptions
@@ -34,7 +34,7 @@ class StarRocksConfig(AdapterConfig):
     partition_by_init: List[str]
     distributed_by: Tuple[str]
     buckets: int
-    properties: dict
+    properties: Dict[str, str]
 
 
 class StarRocksAdapter(SQLAdapter):

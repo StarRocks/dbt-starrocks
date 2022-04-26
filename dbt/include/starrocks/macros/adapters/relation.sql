@@ -77,20 +77,6 @@
     {% endcall %}
 {%- endmacro %}
 
-{% macro starrocks__create_table_as(temporary, relation, sql) -%}
-  {% set sql_header = config.get('sql_header', none) %}
-
-  {{ sql_header if sql_header is not none }}
-  create table {{ relation.include(database=False) }} as {{ sql }}
-{%- endmacro %}
-
-{% macro starrocks__create_view_as(relation, sql) -%}
-  {%- set sql_header = config.get('sql_header', none) -%}
-
-  {{ sql_header if sql_header is not none }}
-  create view {{ relation }} as {{ sql }};
-{%- endmacro %}
-
 {% macro starrocks__rename_relation(from_relation, to_relation) -%}
   {% call statement('drop_relation') %}
     drop {{ to_relation.type }} if exists {{ to_relation }}

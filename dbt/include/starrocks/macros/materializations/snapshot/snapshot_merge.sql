@@ -1,4 +1,3 @@
-
 {% macro starrocks__snapshot_merge_sql_update(target, source, insert_cols) -%}
     update {{ target }}, (select dbt_scd_id, dbt_change_type, dbt_valid_to from {{ source }}) as DBT_INTERNAL_SOURCE
     set {{ target }}.dbt_valid_to = DBT_INTERNAL_SOURCE.dbt_valid_to

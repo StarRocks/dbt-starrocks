@@ -64,3 +64,13 @@
     {{ return(load_result('catalog').table) }}
 
 {%- endmacro %}
+
+{% macro starrocks__check_schema_exists(database, schema) -%}
+{%- endmacro %}
+
+{% macro starrocks__list_schemas(database) -%}
+    {% call statement('list_schemas', fetch_result=True, auto_begin=False) -%}
+    select distinct schema_name from information_schema.schemata
+    {%- endcall %}
+    {{ return(load_result('list_schemas').table) }}
+{%- endmacro %}
