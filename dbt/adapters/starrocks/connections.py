@@ -16,7 +16,7 @@ logger = AdapterLogger("starrocks")
 
 @dataclass
 class StarRocksAdapterCredentials(Credentials):
-    host: str = "localhost"
+    host: str = "127.0.0.1"
     port: int = 9030
     username: str = "root"
     password: str = ""

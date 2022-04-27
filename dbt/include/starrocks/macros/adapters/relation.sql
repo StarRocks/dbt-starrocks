@@ -11,7 +11,7 @@
 {% macro starrocks__partition_by() -%}
   {% set cols = config.get('partition_by') %}
   {% if cols is not none %}
-    PARTITION BY (
+    PARTITION BY RANGE (
       {% for col in cols %}
         {{ col }}{% if not loop.last %},{% endif %}
       {% endfor %}

@@ -1,11 +1,11 @@
-checkfiles = dbt/adapters test/
+checkfiles = dbt/adapters test/ setup.py
 py_warn = PYTHONDEVMODE=1
 
 up:
-	@poetry update
+	@pip install -r requirements_dev.txt --upgrade
 
 deps: 
-	@poetry install
+	@pip install -r requirements_dev.txt
 
 style: deps
 	@isort -src $(checkfiles)
@@ -13,7 +13,7 @@ style: deps
 
 check: deps
 	@black --check $(checkfiles) || (echo "Please run 'make style' to auto-fix style issues" && false)
-	@pflake8 $(checkfiles)
+	@flake8 $(checkfiles)
 	@bandit -x tests -r $(checkfiles)
 	@mypy $(checkfiles)
 
@@ -21,6 +21,6 @@ test: deps
 	$(py_warn) pytest
 
 build:
-	@poetry build
+	@python setup.py bdist_wheel
 
 ci: check test

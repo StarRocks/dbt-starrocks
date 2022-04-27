@@ -20,7 +20,7 @@ from dbt.adapters.starrocks.relation import StarRocksRelation
 
 
 class Engine(str, Enum):
-    olap = "OLAP"
+    olap = "olap"
     mysql = "mysql"
     elasticsearch = "elasticsearch"
     hive = "hive"
