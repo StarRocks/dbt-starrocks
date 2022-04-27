@@ -45,7 +45,7 @@
   {% if cols is none and engine in [none,'OLAP'] %}
     {% set cols = column_names %}
   {% endif %}
-  {% if cols is not none %}
+  {% if cols %}
     {{ label }} (
       {% for item in cols %}
         {{ item }}{% if not loop.last %},{% endif %}

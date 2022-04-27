@@ -74,7 +74,9 @@ class StarRocksAdapterConnectionManager(SQLConnectionManager):
         connection.handle.close()
 
     @classmethod
-    def get_response(cls, cursor: MySQLdb.cursors.Cursor) -> Union[AdapterResponse, str]:
+    def get_response(
+        cls, cursor: MySQLdb.cursors.Cursor
+    ) -> Union[AdapterResponse, str]:
         code = "Unknown cursor state/status"
         rows = cursor.rowcount
         return AdapterResponse(

@@ -59,7 +59,9 @@ class StarRocksAdapter(SQLAdapter):
         return "`{}`".format(identifier)
 
     def check_schema_exists(self, database, schema):
-        results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={"database": database})
+        results = self.execute_macro(
+            LIST_SCHEMAS_MACRO_NAME, kwargs={"database": database}
+        )
 
         exists = True if schema in [row[0] for row in results] else False
         return exists
@@ -99,7 +101,8 @@ class StarRocksAdapter(SQLAdapter):
         schema_map = self._get_catalog_schemas(manifest)
         if len(schema_map) > 1:
             dbt.exceptions.raise_compiler_error(
-                f"Expected only one database in get_catalog, found " f"{list(schema_map)}"
+                f"Expected only one database in get_catalog, found "
+                f"{list(schema_map)}"
             )
 
         with executor(self.config) as tpe:
@@ -120,7 +123,9 @@ class StarRocksAdapter(SQLAdapter):
         return catalogs, exceptions
 
     @classmethod
-    def _catalog_filter_table(cls, table: agate.Table, manifest: Manifest) -> agate.Table:
+    def _catalog_filter_table(
+        cls, table: agate.Table, manifest: Manifest
+    ) -> agate.Table:
         table = table_from_rows(
             table.rows,
             table.column_names,
@@ -136,7 +141,8 @@ class StarRocksAdapter(SQLAdapter):
     ) -> agate.Table:
         if len(schemas) != 1:
             dbt.exceptions.raise_compiler_error(
-                f"Expected only one schema in StarRocks _get_one_catalog, found " f"{schemas}"
+                f"Expected only one schema in StarRocks _get_one_catalog, found "
+                f"{schemas}"
             )
 
         return super()._get_one_catalog(information_schema, schemas, manifest)
