@@ -136,7 +136,7 @@ class StarRocksAdapter(SQLAdapter):
     ) -> agate.Table:
         if len(schemas) != 1:
             dbt.exceptions.raise_compiler_error(
-                f"Expected only one schema in clickhouse _get_one_catalog, found " f"{schemas}"
+                f"Expected only one schema in StarRocks _get_one_catalog, found " f"{schemas}"
             )
 
         return super()._get_one_catalog(information_schema, schemas, manifest)
