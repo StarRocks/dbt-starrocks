@@ -17,6 +17,9 @@
   under the License.
  */
 
-{% macro starrocks__generate_database_name(custom_database_name=none, node=none) -%}
-  {% do return(None) %}
+{% macro starrocks__create_view_as(relation, sql) -%}
+  {%- set sql_header = config.get('sql_header', none) -%}
+
+  {{ sql_header if sql_header is not none }}
+  create view {{ relation }} as {{ sql }};
 {%- endmacro %}

@@ -17,6 +17,9 @@
   under the License.
  */
 
-{% macro starrocks__generate_database_name(custom_database_name=none, node=none) -%}
-  {% do return(None) %}
+{% macro starrocks__snapshot_hash_arguments(args) -%}
+    md5(concat_ws('|', {%- for arg in args -%}
+        coalesce(cast({{ arg }} as char), '')
+        {% if not loop.last %}, {% endif %}
+    {%- endfor -%}))
 {%- endmacro %}

@@ -15,15 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from dbt.adapters.starrocks.connections import StarRocksConnectionManager
-from dbt.adapters.starrocks.connections import StarRocksCredentials
-from dbt.adapters.starrocks.impl import StarRocksAdapter
+fixed:
+  type: starrocks
+prompts:
+  host:
+    hint: 'hostname for the instance'
+  port:
+    default: 9030
+    type: 'int'
+  schema:
+    hint: 'default schema that dbt will build objects in'
+  username:
+    hint: 'username'
+  password:
+    hint: 'password'
+    hide_input: true
+    default: ''
 
-from dbt.adapters.base import AdapterPlugin
-from dbt.include import starrocks
-
-
-Plugin = AdapterPlugin(
-    adapter=StarRocksAdapter,
-    credentials=StarRocksCredentials,
-    include_path=starrocks.PACKAGE_PATH)
