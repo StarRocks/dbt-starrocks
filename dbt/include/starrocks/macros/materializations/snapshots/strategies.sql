@@ -12,6 +12,9 @@
  * limitations under the License.
  */
 
-{% macro starrocks__current_timestamp() -%}
-  current_timestamp()
+{% macro starrocks__snapshot_hash_arguments(args) -%}
+    md5(concat_ws('|', {%- for arg in args -%}
+        coalesce(cast({{ arg }} as char), '')
+        {% if not loop.last %}, {% endif %}
+    {%- endfor -%}))
 {%- endmacro %}

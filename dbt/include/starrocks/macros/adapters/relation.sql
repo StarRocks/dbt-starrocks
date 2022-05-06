@@ -1,3 +1,17 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 {% macro starrocks__engine() -%}
     {% set label = 'ENGINE' %}
     {% set engine = config.get('engine', validator=validation.any[basestring]) %}
@@ -58,36 +72,29 @@
   {% set properties = config.get('properties', validator=validation.any[dict]) or {"replication_num":"1"} %}
   {% if properties is not none %}
     PROPERTIES (
-        {% for key, value in properties.items() %}
-          "{{ key }}" = "{{ value }}"{% if not loop.last %},{% endif %}
-        {% endfor %}
+      {% for key, value in properties.items() %}
+        "{{ key }}" = "{{ value }}"{% if not loop.last %},{% endif %}
+      {% endfor %}
     )
   {% endif %}
 {%- endmacro%}
 
 {% macro starrocks__drop_relation(relation) -%}
-    {% call statement('drop_relation', auto_begin=False) %}
+  {% call statement('drop_relation', auto_begin=False) %}
     drop {{ relation.type }} if exists {{ relation }}
-    {% endcall %}
-{%- endmacro %}
-
-{% macro starrocks__truncate_relation(relation) -%}
-    {% call statement('truncate_relation') %}
-      truncate table {{ relation }}
-    {% endcall %}
+  {% endcall %}
 {%- endmacro %}
 
 {% macro starrocks__rename_relation(from_relation, to_relation) -%}
-  {% call statement('drop_relation') %}
-    drop {{ to_relation.type }} if exists {{ to_relation }}
-  {% endcall %}
   {% call statement('rename_relation') %}
     {% if to_relation.is_view %}
-    {% set results = run_query('show create view ' + from_relation.render() ) %}
-    create view {{ to_relation }} as {{ results[0]['Create View'].replace(from_relation.table, to_relation.table).split('AS',1)[1] }}
-    drop view if exists {{ from_relation }};
-    {% else %}
-    alter table {{ from_relation }} rename {{ to_relation.table }}
+      {% set results = run_query('show create view ' + from_relation.render() ) %}
+        create view {{ to_relation }} as {{ results[0]['Create View'].replace(from_relation.table, to_relation.table).split('AS',1)[1] }}
+        {% call statement('drop_view') %}
+          drop view if exists {{ from_relation }}
+        {% endcall %}
+      {% else %}
+      alter table {{ from_relation }} rename {{ to_relation.table }}
     {% endif %}
   {% endcall %}
 {%- endmacro %}

@@ -10,15 +10,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dbt.adapters.starrocks.connections import StarRocksConnectionManager
-from dbt.adapters.starrocks.connections import StarRocksCredentials
-from dbt.adapters.starrocks.impl import StarRocksAdapter
-
-from dbt.adapters.base import AdapterPlugin
-from dbt.include import starrocks
-
-
-Plugin = AdapterPlugin(
-    adapter=StarRocksAdapter,
-    credentials=StarRocksCredentials,
-    include_path=starrocks.PACKAGE_PATH)
+version = "1.1.0"
