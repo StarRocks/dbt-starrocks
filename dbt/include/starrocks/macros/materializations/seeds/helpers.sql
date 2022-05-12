@@ -13,10 +13,11 @@
  */
 
 {% macro starrocks__create_csv_table(model, agate_table) -%}
-    {% set column_override = model['config'].get('column_types', {}) %}
-    {% set quote_seed_column = model['config'].get('quote_columns', None) %}
+  {% set column_override = model['config'].get('column_types', {}) %}
+  {% set quote_seed_column = model['config'].get('quote_columns', None) %}
+  {% set engine = config.get('engine', 'OLAP') %}
 
-    {% set sql %}
+  {% set sql %}
     create table {{ this.render() }}
     (
         {% for col_name in agate_table.column_names %}
@@ -26,17 +27,17 @@
         {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ type }}{% if not loop.last %},{% endif %}
         {% endfor %}
     )
-    {{ starrocks__engine() }}
-    {{ starrocks__duplicate_key() }}
-    {{ starrocks__partition_by() }}
-    {{ starrocks__distributed_by(agate_table.column_names) }}
-    {{ starrocks__properties() }}
-    {% endset %}
+    {% if engine == 'OLAP' %}
+      {{ starrocks__olap_table(False) }}
+    {% else %}
+      {{ starrocks__other_table() }}
+    {% endif %}
+  {% endset %}
 
-    {% call statement('_') %}
+  {% call statement('_') %}
     {{ sql }}
-    {% endcall %}
+  {% endcall %}
 
-    {{ return(sql) }}
+  {{ return(sql) }}
 
 {%- endmacro %}

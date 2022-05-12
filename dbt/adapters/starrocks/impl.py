@@ -30,23 +30,15 @@ from dbt.adapters.starrocks.column import StarRocksColumn
 from dbt.adapters.starrocks.connections import StarRocksConnectionManager
 from dbt.adapters.starrocks.relation import StarRocksRelation
 
-
-class Engine(str, Enum):
-    olap = "olap"
-    mysql = "mysql"
-    elasticsearch = "elasticsearch"
-    hive = "hive"
-    iceberg = "iceberg"
-
-
 class StarRocksConfig(AdapterConfig):
-    engine: Engine = Engine.olap
-    duplicate_key: Tuple[str]
-    partition_by: Tuple[str]
-    partition_by_init: List[str]
-    distributed_by: Tuple[str]
-    buckets: int
-    properties: Dict[str, str]
+    engine: Optional[str] = None
+    table_type: Optional[str] = None  # DUPLICATE/PRIMARY/UNIQUE/AGGREGATE
+    keys: Optional[List[str]] = None
+    partition_by: Optional[List[str]] = None
+    partition_by_init: Optional[List[str]] = None
+    distributed_by: Optional[List[str]] = None
+    buckets: Optional[int] = None
+    properties: Optional[Dict[str, str]] = None
 
 
 class StarRocksAdapter(SQLAdapter):
@@ -171,3 +163,4 @@ def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
         return (table_database, table_schema.lower()) in schemas
 
     return test
+
