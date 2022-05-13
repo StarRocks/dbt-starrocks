@@ -14,10 +14,20 @@
 
 {% macro starrocks__create_table_as(temporary, relation, sql) -%}
   {% set sql_header = config.get('sql_header', none) %}
+  {% set engine = config.get('engine', 'OLAP') %}
 
   {{ sql_header if sql_header is not none }}
+
   create table {{ relation.include(database=False) }}
-    {{ starrocks__partition_by() }}
-    {{ starrocks__distributed_by() }}
-    {{ starrocks__properties() }} as {{ sql }}
+  {% if engine == 'OLAP' %}
+    {{ starrocks__olap_table(True) }}
+  {% else %}
+    {% set msg -%}
+      "ENGINE = {{ engine }}" is not "CREATE TABLE ... AS ..."
+    {%- endset %}
+    {{ exceptions.raise_compiler_error(msg) }}
+  {% endif %}
+
+  as {{ sql }}
+
 {%- endmacro %}
