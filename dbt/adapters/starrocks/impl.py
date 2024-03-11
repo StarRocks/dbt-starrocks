@@ -1,9 +1,12 @@
+#! /usr/bin/python3
+# Copyright 2021-present StarRocks, Inc. All rights reserved.
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
-#     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
+#     https:#www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -11,11 +14,11 @@
 # limitations under the License.
 
 from concurrent.futures import Future
-from enum import Enum
-from typing import Callable, Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional, Set
 
 import agate
 import dbt.exceptions
+from dbt.adapters.base import available
 from dbt.adapters.base.impl import _expect_row_value, catch_as_completed
 from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.protocol import AdapterConfig
@@ -71,7 +74,7 @@ class StarRocksAdapter(SQLAdapter):
         return exists
 
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
-        if not self.Relation.include_policy.database:
+        if not self.Relation.get_default_include_policy().database:
             database = None
 
         return super().get_relation(database, schema, identifier)
@@ -85,17 +88,16 @@ class StarRocksAdapter(SQLAdapter):
         relations = []
         for row in results:
             if len(row) != 4:
-                raise dbt.exceptions.RuntimeException(
+                raise dbt.exceptions.DbtRuntimeError(
                     f"Invalid value from 'show table extended ...', "
                     f"got {len(row)} values, expected 4"
                 )
             _database, name, schema, type_info = row
-            rel_type = RelationType.View if "view" in type_info else RelationType.Table
             relation = self.Relation.create(
                 database=None,
                 schema=schema,
                 identifier=name,
-                type=rel_type,
+                type=self.Relation.get_relation_type(type_info),
             )
             relations.append(relation)
 
@@ -104,7 +106,7 @@ class StarRocksAdapter(SQLAdapter):
     def get_catalog(self, manifest):
         schema_map = self._get_catalog_schemas(manifest)
         if len(schema_map) > 1:
-            dbt.exceptions.raise_compiler_error(
+            dbt.exceptions.CompilationError(
                 f"Expected only one database in get_catalog, found "
                 f"{list(schema_map)}"
             )
@@ -137,6 +139,26 @@ class StarRocksAdapter(SQLAdapter):
         )
         return table.where(_catalog_filter_schemas(manifest))
 
+    @available
+    def is_before_version(self, version: str) -> bool:
+        conn = self.connections.get_if_exists()
+        if conn:
+            server_version = conn.handle.server_version
+            server_version_tuple = tuple(int(part) for part in server_version if part.isdigit())
+            version_detail_tuple = tuple(int(part) for part in version.split(".") if part.isdigit())
+            if version_detail_tuple > server_version_tuple:
+                return True
+        return False
+
+    @available
+    def current_version(self):
+        conn = self.connections.get_if_exists()
+        if conn:
+            server_version = conn.handle.server_version
+            if server_version != (999, 999, 999):
+                return "{}.{}.{}".format(server_version[0], server_version[1], server_version[2])
+        return 'UNKNOWN'
+
     def _get_one_catalog(
         self,
         information_schema: InformationSchema,
@@ -144,7 +166,7 @@ class StarRocksAdapter(SQLAdapter):
         manifest: Manifest,
     ) -> agate.Table:
         if len(schemas) != 1:
-            dbt.exceptions.raise_compiler_error(
+            dbt.exceptions.CompilationError(
                 f"Expected only one schema in StarRocks _get_one_catalog, found "
                 f"{schemas}"
             )
@@ -163,4 +185,3 @@ def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
         return (table_database, table_schema.lower()) in schemas
 
     return test
-
