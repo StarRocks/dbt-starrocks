@@ -16,16 +16,21 @@ fixed:
   type: starrocks
 prompts:
   host:
+    default: 'localhost'
     hint: 'hostname for the instance'
   port:
     default: 9030
     type: 'int'
   schema:
     hint: 'default schema that dbt will build objects in'
+    default: 'dbt'
   username:
+    default: 'root'
     hint: 'username'
   password:
     hint: 'password'
     hide_input: true
+    default: ''
+  version:
     default: ''
 
