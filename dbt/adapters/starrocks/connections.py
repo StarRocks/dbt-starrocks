@@ -104,8 +104,10 @@ class StarRocksConnectionManager(SQLConnectionManager):
 
         credentials = cls.get_credentials(connection.credentials)
         kwargs = {"host": credentials.host, "username": credentials.username,
-                  "password": credentials.password, "database": credentials.catalog + "." + credentials.schema}
+                  "password": credentials.password, "database": credentials.catalog + "." + credentials.schema, }
 
+        kwargs["buffered"] = True
+        
         if credentials.port:
             kwargs["port"] = credentials.port
 
