@@ -135,6 +135,10 @@ Finally, you might use below marco quote
 
 
 ## Test Adapter
+Run the following
+```
+python3 -m pytest tests/functional
+```
 consult [the project](https://github.com/dbt-labs/dbt-adapter-tests)
 
 ## Contributing
