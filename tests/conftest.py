@@ -16,6 +16,8 @@ def dbt_profile_target():
         'username': 'root',
         'password': '',
         'port': 9030,
-        'ssl_disabled': True,
-        'version': '3.1.9'
+        'host': 'localhost',
+        'version': '3.1.9',
+        'schema': 'dbt',
+        'ssl_disabled': True
     }

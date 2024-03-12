@@ -119,10 +119,20 @@ class StarRocksConnectionManager(SQLConnectionManager):
                              "Trying again with `database` included.")
 
                 # Try again with the database included
+                database_toBeCreated = kwargs["database"]
                 kwargs["database"] = "information_schema"
 
                 connection.handle = mysql.connector.connect(**kwargs)
                 connection.state = 'open'
+
+                mycursor = connection.handle.cursor()
+
+                mycursor.execute("CREATE DATABASE " + database_toBeCreated)
+                kwargs["database"] = database_toBeCreated;
+
+                connection.handle = mysql.connector.connect(**kwargs)
+                connection.state = 'open'
+
             except mysql.connector.Error as e:
 
                 logger.debug("Got an error when attempting to open a StarRocks "
