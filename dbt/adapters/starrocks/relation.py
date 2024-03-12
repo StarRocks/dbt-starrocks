@@ -37,6 +37,7 @@ class StarRocksRelationType(StrEnum):
     View = "view"
     MaterializedView = "materialized_view"
     SystemView = "system_view"
+    CTE = "cte"
     Unknown = "unknown"
 
 @dataclass(frozen=True, eq=False, repr=False)
