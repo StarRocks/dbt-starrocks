@@ -144,6 +144,8 @@ class StarRocksConnectionManager(SQLConnectionManager):
             version = credentials.version.strip().split('.')
             if len(version) == 3:
                 connection.handle.server_version = (int(version[0]), int(version[1]), int(version[2]))
+            elif len(version) == 2:
+                connection.handle.server_version = (int(version[0]), int(version[1]), 0)
             else:
                 logger.debug("Config version '{}' is invalid".format(version))
 
