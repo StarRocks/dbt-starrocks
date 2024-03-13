@@ -57,7 +57,7 @@ setup(
     packages=find_namespace_packages(include=['dbt', 'dbt.*']),
     include_package_data=True,
     install_requires=[
-        "dbt-core==1.6.2",
+        "dbt-core==1.6.10",
         "mysql-connector-python>=8.1",
     ],
     zip_safe=False,
