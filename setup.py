@@ -53,7 +53,7 @@ setup(
     long_description_content_type="text/markdown",
     author="fujianhj, long2ice, astralidea",
     author_email="fujianhj@gmail.com, long2ice@gmail.com, astralidea@163.com",
-    url="https://github.com/StarRocks/starrocks/tree/main/contrib/dbt-connector",
+    url="https://github.com/StarRocks/dbt-starrocks/",
     packages=find_namespace_packages(include=['dbt', 'dbt.*']),
     include_package_data=True,
     install_requires=[
