@@ -89,7 +89,7 @@ def _parse_version(result):
         first_part = result.split(' ')[0]
 
     if first_part and len(first_part.split('.')) == 3:
-        return first_part[0], first_part[1], first_part[2]
+        return first_part[0], first_part[2], first_part[4]
 
     return default_version
 
