@@ -11,13 +11,13 @@ pytest_plugins = ["dbt.tests.fixtures.project"]
 def dbt_profile_target():
     return {
         'type': 'starrocks',
-        'threads': 1,
-        'server': 'localhost',
+#        'threads': 1,
+#        'server': 'localhost',
         'username': 'root',
         'password': '',
         'port': 9030,
         'host': 'localhost',
-        'version': '3.1.9',
-        'schema': 'dbt',
-        'ssl_disabled': True
+#        'version': '3.0',
+#        'schema': 'dbt',
+#        'ssl_disabled': True
     }
