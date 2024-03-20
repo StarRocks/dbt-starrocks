@@ -15,6 +15,9 @@
 
 from contextlib import contextmanager
 
+import json
+from json.decoder.json import JSONDecodeError
+
 import mysql.connector
 
 import dbt.exceptions
@@ -40,6 +43,7 @@ class StarRocksCredentials(Credentials):
     password: Optional[str] = None
     charset: Optional[str] = None
     version: Optional[str] = None
+    ssl: Optional[str] = None
 
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -76,6 +80,7 @@ class StarRocksCredentials(Credentials):
             "schema",
             "catalog",
             "username",
+            "ssl",
         )
 
 
@@ -110,6 +115,12 @@ class StarRocksConnectionManager(SQLConnectionManager):
         
         if credentials.port:
             kwargs["port"] = credentials.port
+
+        if credentials.ssl:
+            try:
+                kwargs["ssl"] = json.loads(credentials.ssl)
+            except JSONDecodeError:
+                logger.debug("Failed to decode SSL config. Falling back to no SSL config.")
 
         try:
             connection.handle = mysql.connector.connect(**kwargs)
