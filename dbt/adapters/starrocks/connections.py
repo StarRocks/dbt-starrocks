@@ -16,7 +16,7 @@
 from contextlib import contextmanager
 
 import json
-from json.decoder.json import JSONDecodeError
+from json.decoder import JSONDecodeError
 
 import mysql.connector
 

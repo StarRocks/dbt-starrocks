@@ -36,7 +36,7 @@ except ImportError:
 
 # pull long description from README
 this_directory = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(this_directory, "README.md")) as f:
+with open(os.path.join(this_directory, "README.md"), encoding='utf8') as f:
     long_description = f.read()
 
 package_name = "dbt-starrocks"
@@ -57,7 +57,7 @@ setup(
     packages=find_namespace_packages(include=['dbt', 'dbt.*']),
     include_package_data=True,
     install_requires=[
-        "dbt-core~=1.6.0",
+        "dbt-core~=1.7.10",
         "mysql-connector-python>=8.1",
     ],
     zip_safe=False,
