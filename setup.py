@@ -41,7 +41,7 @@ with open(os.path.join(this_directory, "README.md"), encoding='utf8') as f:
 
 package_name = "dbt-starrocks"
 # make sure this always matches dbt/adapters/starrocks/__version__.py
-package_version = "1.7.10"
+package_version = "1.6.1"
 description = """The Starrocks adapter plugin for dbt"""
 
 
