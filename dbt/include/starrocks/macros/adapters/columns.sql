@@ -29,8 +29,29 @@
       and table_schema = '{{ relation.schema }}'
       {% endif %}
     order by ordinal_position
-
   {% endcall %}
+
+  {% call statement('desc_columns_in_relation', fetch_result=True) %}
+        desc `{{ relation.schema }}`.`{{ relation.identifier }}`
+  {% endcall %}
+
   {% set table = load_result('get_columns_in_relation').table %}
-  {{ return(sql_convert_columns_in_relation(table)) }}
+  {% set desc_table = load_result('desc_columns_in_relation').table %}
+
+  {{ return(starrocks__sql_convert_columns_in_relation(relation, table, desc_table)) }}
+{% endmacro %}
+
+{% macro starrocks__sql_convert_columns_in_relation(relation, table, desc_table) -%}
+  {% do relation.init_type_map(desc_table) %}
+  {% set columns = [] %}
+  {% for row in table %}
+    -- rows[1] means type from information_schema
+    {% if row[1] in ['array', 'struct', 'map'] %}
+        {% set fixed_row = relation.get_type_by_desc(row) %}
+        {% do columns.append(api.Column(*fixed_row)) %}
+    {%- else -%}
+        {% do columns.append(api.Column(*row)) %}
+    {% endif %}
+  {% endfor %}
+  {{ return(columns) }}
 {% endmacro %}

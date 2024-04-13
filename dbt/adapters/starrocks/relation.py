@@ -20,17 +20,20 @@ from dbt.exceptions import DbtRuntimeError
 from dbt.dataclass_schema import StrEnum
 from dbt.utils import classproperty
 
+
 @dataclass
 class StarRocksQuotePolicy(Policy):
     database: bool = False
     schema: bool = True
     identifier: bool = True
 
+
 @dataclass
 class StarRocksIncludePolicy(Policy):
     database: bool = False
     schema: bool = True
     identifier: bool = True
+
 
 class StarRocksRelationType(StrEnum):
     Table = "table"
@@ -39,6 +42,10 @@ class StarRocksRelationType(StrEnum):
     SystemView = "system_view"
     CTE = "cte"
     Unknown = "unknown"
+
+
+type_map = {}
+
 
 @dataclass(frozen=True, eq=False, repr=False)
 class StarRocksRelation(BaseRelation):
@@ -77,6 +84,17 @@ class StarRocksRelation(BaseRelation):
                 "Got a StarRocks relation with schema and database set to include, but only one can be set"
             )
         return super().render()
+
+    def init_type_map(self, desc_table):
+        for row in desc_table:
+            # name -> type
+            type_map[row[0]] = row[1]
+
+    def get_type_by_desc(self, row):
+        new_row = list(row)
+        # type
+        new_row[1] = type_map[row[0]]
+        return new_row
 
     @classproperty
     def get_relation_type(cls) -> Type[StarRocksRelationType]:

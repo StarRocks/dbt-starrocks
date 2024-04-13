@@ -31,6 +31,10 @@ class StarRocksColumn(Column):
                                       # starrocks
                                       "char", "string"]
 
+    @classmethod
+    def string_type(cls, size: int) -> str:
+        return "varchar({})".format(size)
+
     def is_float(self):
         return self.dtype.lower() in [
             # floats
