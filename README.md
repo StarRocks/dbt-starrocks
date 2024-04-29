@@ -69,9 +69,9 @@ starrocks:
 | username | The username to use to connect to the server            | Required  | `dbt_admin`                    |
 | password | The password to use for authenticating to the server    | Required  | `correct-horse-battery-staple` |
 | version  | Let Plugin try to go to a compatible starrocks version  | Optional  | `3.1.0`                        |
-| ssl      | json string to specify SSL_MODE for the mysql connector | Optional  | `'{"ca": "path/to/ca.pem"}'`   |
+| use_pure | set to "true" to use C extensions                       | Optional  | `true`                         |
 
-More details about configuring SSL_MODE for the connector [here](https://stackoverflow.com/questions/60285240/is-there-a-way-to-emulate-ssl-mode-preferred-in-pymysql)
+More details about setting `use_pure` and other connection arguments [here](https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html)
 
 
 ## Example
