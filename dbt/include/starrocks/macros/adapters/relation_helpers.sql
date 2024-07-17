@@ -91,9 +91,14 @@
         {{ item }} {%- if not loop.last -%}, {%- endif -%}
       {%- endfor -%}
     ) 
-  {%- if buckets is not none -%}
-    BUCKETS {{ buckets }}
-  {%- endif -%}
+    {%- if buckets is not none -%}
+      BUCKETS {{ buckets }}
+    {%- elseif adapter.is_before_version("2.5.7") -%}
+      {%- set msg -%}
+        [buckets] must set before version 2.5.7, current version is {{ adapter.current_version() }}
+      {%- endset -%}
+      {{ exceptions.raise_compiler_error(msg) }}
+    {%- endif -%}
   {%- elif adapter.is_before_version("3.1.0") -%}
     {%- set msg -%}
       [distributed_by] must set before version 3.1, current version is {{ adapter.current_version() }}
