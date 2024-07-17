@@ -93,7 +93,7 @@
     ) 
     {%- if buckets is not none -%}
       BUCKETS {{ buckets }}
-    {%- elseif adapter.is_before_version("2.5.7") -%}
+    {%- elif adapter.is_before_version("2.5.7") -%}
       {%- set msg -%}
         [buckets] must set before version 2.5.7, current version is {{ adapter.current_version() }}
       {%- endset -%}
