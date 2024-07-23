@@ -24,7 +24,7 @@
   {%- set partition_by_init = config.get('partition_by_init') -%}
   {%- set order_by = config.get('order_by') -%}
   {%- set partition_type = config.get('partition_type', 'RANGE') -%}
-  {%- set buckets = config.get('buckets', 10) -%}
+  {%- set buckets = config.get('buckets') -%}
   {%- set distributed_by = config.get('distributed_by') -%}
   {%- set properties = config.get('properties') -%}
   {%- set materialized = config.get('materialized', none) -%}
@@ -90,7 +90,15 @@
       {%- for item in distributed_by -%}
         {{ item }} {%- if not loop.last -%}, {%- endif -%}
       {%- endfor -%}
-    ) BUCKETS {{ buckets }}
+    ) 
+    {%- if buckets is not none -%}
+      BUCKETS {{ buckets }}
+    {%- elif adapter.is_before_version("2.5.7") -%}
+      {%- set msg -%}
+        [buckets] must set before version 2.5.7, current version is {{ adapter.current_version() }}
+      {%- endset -%}
+      {{ exceptions.raise_compiler_error(msg) }}
+    {%- endif -%}
   {%- elif adapter.is_before_version("3.1.0") -%}
     {%- set msg -%}
       [distributed_by] must set before version 3.1, current version is {{ adapter.current_version() }}

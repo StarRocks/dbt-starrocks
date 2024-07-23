@@ -85,7 +85,7 @@ models:
   keys: ['id', 'name', 'some_date']
   table_type: 'PRIMARY'                 // PRIMARY or DUPLICATE or UNIQUE
   distributed_by: ['id']
-  buckets: 3                            // default 10
+  buckets: 3                            // leave empty for auto bucketing
   indexs=[{ 'columns': 'idx_column' }]  
   partition_by: ['some_date']
   partition_by_init: ["PARTITION p1 VALUES [('1971-01-01 00:00:00'), ('1991-01-01 00:00:00')),PARTITION p1972 VALUES [('1991-01-01 00:00:00'), ('1999-01-01 00:00:00'))"]
