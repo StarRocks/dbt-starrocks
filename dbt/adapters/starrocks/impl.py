@@ -24,14 +24,15 @@ from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql import SQLAdapter
 from dbt.adapters.sql.impl import LIST_RELATIONS_MACRO_NAME, LIST_SCHEMAS_MACRO_NAME
-from dbt.clients.agate_helper import table_from_rows
+from dbt_common.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.relation import RelationType
-from dbt.utils import executor
+from dbt.adapters.contracts.relation import RelationType
+from dbt_common.utils import executor
 
 from dbt.adapters.starrocks.column import StarRocksColumn
 from dbt.adapters.starrocks.connections import StarRocksConnectionManager
 from dbt.adapters.starrocks.relation import StarRocksRelation
+
 
 class StarRocksConfig(AdapterConfig):
     engine: Optional[str] = None
@@ -145,7 +146,8 @@ class StarRocksAdapter(SQLAdapter):
         if conn:
             server_version = conn.handle.server_version
             server_version_tuple = tuple(server_version)
-            version_detail_tuple = tuple(int(part) for part in version.split(".") if part.isdigit())
+            version_detail_tuple = tuple(
+                int(part) for part in version.split(".") if part.isdigit())
             if version_detail_tuple > server_version_tuple:
                 return True
         return False
@@ -175,7 +177,8 @@ class StarRocksAdapter(SQLAdapter):
 
 
 def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
-    schemas = frozenset((None, s.lower()) for d, s in manifest.get_used_schemas())
+    schemas = frozenset((None, s.lower())
+                        for d, s in manifest.get_used_schemas())
 
     def test(row: agate.Row) -> bool:
         table_database = _expect_row_value("table_database", row)

@@ -18,13 +18,16 @@ from contextlib import contextmanager
 import mysql.connector
 
 import dbt.exceptions
+import dbt_common.exceptions
 from dataclasses import dataclass
 
-from dbt.adapters.base import Credentials
+from dbt.adapters.contracts.connection import (
+  Credentials,
+  AdapterResponse,
+  Connection
+)
 from dbt.adapters.sql import SQLConnectionManager
-from dbt.contracts.connection import AdapterResponse
-from dbt.contracts.connection import Connection
-from dbt.events import AdapterLogger
+from dbt.adapters.events.logging import AdapterLogger
 from typing import Optional
 
 logger = AdapterLogger("starrocks")
@@ -189,7 +192,7 @@ class StarRocksConnectionManager(SQLConnectionManager):
                 logger.debug("Failed to release connection!")
                 pass
 
-            raise dbt.exceptions.DbtDatabaseError(str(e).strip()) from e
+            raise dbt_common.exceptions.DbtDatabaseError(str(e).strip()) from e
 
         except Exception as e:
             logger.debug("Error running SQL: {}", sql)
