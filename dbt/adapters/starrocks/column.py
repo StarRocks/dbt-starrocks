@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from dbt.adapters.base.column import Column
 
+
 @dataclass
 class StarRocksColumn(Column):
     @property

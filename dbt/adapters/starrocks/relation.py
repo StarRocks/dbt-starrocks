@@ -17,8 +17,15 @@ from dataclasses import dataclass, field
 from typing import Optional, Type
 from dbt.adapters.base.relation import BaseRelation, Policy
 from dbt.exceptions import DbtRuntimeError
-from dbt.dataclass_schema import StrEnum
-from dbt.utils import classproperty
+from dbt_common.dataclass_schema import StrEnum
+
+
+class classproperty(object):
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, obj, objtype):
+        return self.func(objtype)
 
 
 @dataclass
@@ -50,8 +57,10 @@ type_map = {}
 @dataclass(frozen=True, eq=False, repr=False)
 class StarRocksRelation(BaseRelation):
     type: Optional[StarRocksRelationType] = None  # type: ignore
-    include_policy: StarRocksIncludePolicy = field(default_factory=lambda: StarRocksIncludePolicy())
-    quote_policy: StarRocksQuotePolicy = field(default_factory=lambda: StarRocksQuotePolicy())
+    include_policy: StarRocksIncludePolicy = field(
+        default_factory=lambda: StarRocksIncludePolicy())
+    quote_policy: StarRocksQuotePolicy = field(
+        default_factory=lambda: StarRocksQuotePolicy())
     quote_character: str = "`"
 
     def quoted(self, identifier):
@@ -76,7 +85,8 @@ class StarRocksRelation(BaseRelation):
 
     def __post_init__(self):
         if self.database is not None:
-            raise DbtRuntimeError(f"Cannot set database {self.database} in StarRocks!")
+            raise DbtRuntimeError(
+                f"Cannot set database {self.database} in StarRocks!")
 
     def render(self):
         if self.include_policy.database and self.include_policy.schema:
