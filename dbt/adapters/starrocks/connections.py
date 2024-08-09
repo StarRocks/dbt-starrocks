@@ -22,15 +22,16 @@ import dbt_common.exceptions
 from dataclasses import dataclass
 
 from dbt.adapters.contracts.connection import (
-  Credentials,
-  AdapterResponse,
-  Connection
+    Credentials,
+    AdapterResponse,
+    Connection
 )
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
 from typing import Optional
 
 logger = AdapterLogger("starrocks")
+
 
 @dataclass
 class StarRocksCredentials(Credentials):
@@ -55,7 +56,7 @@ class StarRocksCredentials(Credentials):
             self.database is not None and
             self.database != self.schema
         ):
-            raise dbt.exceptions.DbtRuntimeError(
+            raise dbt_common.exceptions.DbtRuntimeError(
                 f"    schema: {self.schema} \n"
                 f"    database: {self.database} \n"
                 f"On StarRocks, database must be omitted or have the same value as"
@@ -98,6 +99,7 @@ def _parse_version(result):
 
     return default_version
 
+
 class StarRocksConnectionManager(SQLConnectionManager):
     TYPE = 'starrocks'
 
@@ -112,7 +114,7 @@ class StarRocksConnectionManager(SQLConnectionManager):
                   "password": credentials.password, "database": credentials.catalog + "." + credentials.schema}
 
         kwargs["buffered"] = True
-        
+
         if credentials.port:
             kwargs["port"] = credentials.port
 
@@ -138,7 +140,7 @@ class StarRocksConnectionManager(SQLConnectionManager):
                 mycursor = connection.handle.cursor()
 
                 mycursor.execute("CREATE DATABASE " + database_toBeCreated)
-                kwargs["database"] = database_toBeCreated;
+                kwargs["database"] = database_toBeCreated
 
                 connection.handle = mysql.connector.connect(**kwargs)
                 connection.state = 'open'
@@ -151,21 +153,25 @@ class StarRocksConnectionManager(SQLConnectionManager):
                 connection.handle = None
                 connection.state = 'fail'
 
-                raise dbt.exceptions.FailedToConnectError(str(e))
+                raise dbt_common.exceptions.ConnectionError(str(e))
 
         if credentials.version is None:
             cursor = connection.handle.cursor()
             try:
                 cursor.execute("select current_version()")
-                connection.handle.server_version = _parse_version(cursor.fetchone()[0])
+                connection.handle.server_version = _parse_version(
+                    cursor.fetchone()[0])
             except Exception as e:
-                logger.debug("Got an error when obtain StarRocks version exception: '{}'".format(e))
+                logger.debug(
+                    "Got an error when obtain StarRocks version exception: '{}'".format(e))
         else:
             version = credentials.version.strip().split('.')
             if len(version) == 3:
-                connection.handle.server_version = (int(version[0]), int(version[1]), int(version[2]))
+                connection.handle.server_version = (
+                    int(version[0]), int(version[1]), int(version[2]))
             elif len(version) == 2:
-                connection.handle.server_version = (int(version[0]), int(version[1]), 0)
+                connection.handle.server_version = (
+                    int(version[0]), int(version[1]), 0)
             else:
                 logger.debug("Config version '{}' is invalid".format(version))
 
@@ -204,7 +210,7 @@ class StarRocksConnectionManager(SQLConnectionManager):
                 # useful information, so raise it without modification.
                 raise
 
-            raise dbt.exceptions.DbtRuntimeError(str(e)) from e
+            raise dbt_common.exceptions.DbtRuntimeError(str(e)) from e
 
     @classmethod
     def get_response(cls, cursor) -> AdapterResponse:
