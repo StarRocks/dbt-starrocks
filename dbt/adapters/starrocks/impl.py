@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from concurrent.futures import Future
-from typing import Callable, Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set, FrozenSet, Tuple
 
 import agate
 import dbt.exceptions
@@ -104,7 +104,7 @@ class StarRocksAdapter(SQLAdapter):
 
         return relations
 
-    def get_catalog(self, manifest):
+    def get_catalog(self, manifest, used_schemas):
         schema_map = self._get_catalog_schemas(manifest)
         if len(schema_map) > 1:
             dbt.exceptions.CompilationError(
@@ -116,6 +116,10 @@ class StarRocksAdapter(SQLAdapter):
             futures: List[Future[agate.Table]] = []
             for info, schemas in schema_map.items():
                 for schema in schemas:
+                    for d, s in used_schemas:
+                        if schema.lower() == s.lower():
+                            schema = s
+                            break
                     futures.append(
                         tpe.submit_connected(
                             self,
@@ -123,7 +127,7 @@ class StarRocksAdapter(SQLAdapter):
                             self._get_one_catalog,
                             info,
                             [schema],
-                            manifest,
+                            used_schemas,
                         )
                     )
             catalogs, exceptions = catch_as_completed(futures)
@@ -131,14 +135,14 @@ class StarRocksAdapter(SQLAdapter):
 
     @classmethod
     def _catalog_filter_table(
-        cls, table: agate.Table, manifest: Manifest
+        cls, table: "agate.Table", used_schemas: FrozenSet[Tuple[str, str]]
     ) -> agate.Table:
         table = table_from_rows(
             table.rows,
             table.column_names,
             text_only_columns=["table_schema", "table_name"],
         )
-        return table.where(_catalog_filter_schemas(manifest))
+        return table.where(_catalog_filter_schemas(used_schemas))
 
     @available
     def is_before_version(self, version: str) -> bool:
@@ -165,7 +169,7 @@ class StarRocksAdapter(SQLAdapter):
         self,
         information_schema: InformationSchema,
         schemas: Set[str],
-        manifest: Manifest,
+        used_schemas: FrozenSet[Tuple[str, str]],
     ) -> agate.Table:
         if len(schemas) != 1:
             dbt.exceptions.CompilationError(
@@ -173,12 +177,11 @@ class StarRocksAdapter(SQLAdapter):
                 f"{schemas}"
             )
 
-        return super()._get_one_catalog(information_schema, schemas, manifest)
+        return super()._get_one_catalog(information_schema, schemas, used_schemas)
 
 
-def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
-    schemas = frozenset((None, s.lower())
-                        for d, s in manifest.get_used_schemas())
+def _catalog_filter_schemas(used_schemas: FrozenSet[Tuple[str, str]]) -> Callable[[agate.Row], bool]:
+    schemas = frozenset((None, s.lower()) for d, s in used_schemas)
 
     def test(row: agate.Row) -> bool:
         table_database = _expect_row_value("table_database", row)

@@ -1,6 +1,6 @@
 {% macro starrocks__get_replace_materialized_view_as_sql(relation, sql, existing_relation, backup_relation, intermediate_relation) %}
     {{ starrocks__get_drop_relation_sql(existing_relation) }}
-    {{ get_create_materialized_view_as_sql(relation, sql) }}
+    {{ starrocks__get_create_materialized_view_as_sql(relation, sql) }}
 {% endmacro %}
 
 {% macro starrocks__drop_materialized_view(relation) -%}
@@ -74,6 +74,6 @@
     intermediate_relation
 ) %}
 
-    {{ get_replace_materialized_view_as_sql(relation, sql, existing_relation, backup_relation, intermediate_relation) }}
+    {{ starrocks__get_replace_materialized_view_as_sql(relation, sql, existing_relation, backup_relation, intermediate_relation) }}
 
 {% endmacro %}

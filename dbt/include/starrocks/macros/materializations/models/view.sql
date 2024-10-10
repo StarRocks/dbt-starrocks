@@ -20,3 +20,7 @@
   {{ sql_header if sql_header is not none }}
   create view {{ relation }} as {{ sql }};
 {%- endmacro %}
+
+{% macro starrocks__drop_view(relation) -%}
+  drop view if exists {{ relation.render() }}
+{%- endmacro %}

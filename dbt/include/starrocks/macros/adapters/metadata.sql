@@ -76,7 +76,7 @@
     where tables.table_schema not in ('information_schema', '__statistics__')
     and (
     {%- for schema in schemas -%}
-      upper(tables.table_schema) = upper('{{ schema }}'){%- if not loop.last %} or {% endif -%}
+      tables.table_schema = '{{ schema }}'{%- if not loop.last %} or {% endif -%}
     {%- endfor -%}
     )
     order by column_index
