@@ -16,9 +16,9 @@
 import os
 import sys
 
-if sys.version_info < (3, 9) or sys.version_info >= (3, 12):
+if sys.version_info < (3, 9) or sys.version_info >= (3, 13):
     print("Error: dbt-starrocks does not support this version of Python.")
-    print("Please install Python 3.9 or higher but less than 3.12.")
+    print("Please install Python 3.9 or higher but less than 3.13.")
     sys.exit(1)
 
 from setuptools import find_namespace_packages, setup
@@ -73,6 +73,7 @@ setup(
         'Programming Language :: Python :: 3.9',
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
-    python_requires=">=3.9,<3.12",
+    python_requires=">=3.9,<3.13",
 )
