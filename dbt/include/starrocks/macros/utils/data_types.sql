@@ -18,6 +18,10 @@
     {{ return(api.Column.translate_type("float")) }}
 {% endmacro %}
 
+{# numeric  -------------------------------------------------     #}
+{% macro starrocks__type_numeric() %}
+    {{ return(api.Column.numeric_type("decimal", 28, 6)) }}
+{% endmacro %}
 
 {# bigint  -------------------------------------------------     #}
 
