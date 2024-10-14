@@ -16,9 +16,9 @@
 import os
 import sys
 
-if sys.version_info < (3, 7) or sys.version_info >= (3, 12):
+if sys.version_info < (3, 9) or sys.version_info >= (3, 12):
     print("Error: dbt-starrocks does not support this version of Python.")
-    print("Please install Python 3.7 or higher but less than 3.12.")
+    print("Please install Python 3.9 or higher but less than 3.12.")
     sys.exit(1)
 
 from setuptools import find_namespace_packages, setup
@@ -41,7 +41,7 @@ with open(os.path.join(this_directory, "README.md"), encoding='utf-8') as f:
 
 package_name = "dbt-starrocks"
 # make sure this always matches dbt/adapters/starrocks/__version__.py
-package_version = "1.8.4"
+package_version = "1.7.0"
 description = """The Starrocks adapter plugin for dbt"""
 
 
@@ -70,11 +70,9 @@ setup(
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX :: Linux',
 
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
     ],
-    python_requires=">=3.7,<3.12",
+    python_requires=">=3.9,<3.12",
 )
