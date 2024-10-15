@@ -32,7 +32,7 @@
 
   {%- if materialized == 'incremental' and unique_key is not none -%}
     {%- set table_type = 'PRIMARY' -%}
-    {%- set keys = [unique_key] -%}
+    {%- set keys = unique_key if unique_key is sequence and unique_key is not mapping and unique_key is not string else [unique_key] -%}
   {%- endif -%}
 
   {%- if properties is none -%}
