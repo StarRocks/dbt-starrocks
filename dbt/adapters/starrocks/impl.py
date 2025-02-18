@@ -25,9 +25,8 @@ from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql import SQLAdapter
 from dbt.adapters.sql.impl import LIST_RELATIONS_MACRO_NAME, LIST_SCHEMAS_MACRO_NAME
 from dbt_common.clients.agate_helper import table_from_rows
-from dbt.contracts.graph.manifest import Manifest
-from dbt.adapters.contracts.relation import RelationType
 from dbt_common.utils import executor
+from typing_extensions import override
 
 from dbt.adapters.starrocks.column import StarRocksColumn
 from dbt.adapters.starrocks.connections import StarRocksConnectionManager
@@ -178,6 +177,10 @@ class StarRocksAdapter(SQLAdapter):
             )
 
         return super()._get_one_catalog(information_schema, schemas, used_schemas)
+
+    @override
+    def valid_incremental_strategies(self):
+        return ["default", "insert_overwrite", "dynamic_overwrite"]
 
 
 def _catalog_filter_schemas(used_schemas: FrozenSet[Tuple[str, str]]) -> Callable[[agate.Row], bool]:

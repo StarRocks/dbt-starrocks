@@ -11,7 +11,7 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 
-# StarRocks doesn't support materizations from table to view https://github.com/StarRocks/dbt-starrocks/issues/33
+# StarRocks doesn't support materialization from table to view https://github.com/StarRocks/dbt-starrocks/issues/33
 class TestSimpleMaterializationsMyAdapter(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def test_base(self, project):
