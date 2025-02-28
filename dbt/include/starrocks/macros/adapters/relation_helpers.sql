@@ -37,8 +37,6 @@
 
   {%- if properties is none -%}
         {%- set properties = config.get('properties', {"replication_num":"1"}) -%}
-  {%- else -%}
-        {%- set properties = fromjson(config.get('properties')) -%}
   {%- endif -%}
 
   {# 1. SET ENGINE #}
