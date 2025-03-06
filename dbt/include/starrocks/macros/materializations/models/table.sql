@@ -41,12 +41,6 @@
     {{ exceptions.raise_compiler_error(msg) }}
   {%- endif -%}
 
-  {% if properties is not none %}
-     PROPERTIES (
-        {{ properties }}
-     )
-  {% endif %}
-
   as {{ sql }}
 
 {%- endmacro %}
