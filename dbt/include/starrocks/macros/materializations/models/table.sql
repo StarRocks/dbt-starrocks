@@ -18,6 +18,7 @@
   {%- set sql_header = config.get('sql_header', none) -%}
   {%- set engine = config.get('engine', 'OLAP') -%}
   {%- set indexs = config.get('indexs') -%}
+  {%- set properties = config.get('properties') -%}
 
   {{ sql_header if sql_header is not none }}
 
@@ -39,6 +40,12 @@
     {%- endset %}
     {{ exceptions.raise_compiler_error(msg) }}
   {%- endif -%}
+
+  {% if properties is not none %}
+     PROPERTIES (
+        {{ properties }}
+     )
+  {% endif %}
 
   as {{ sql }}
 
