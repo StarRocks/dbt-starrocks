@@ -15,11 +15,16 @@
  */
 
 {% macro starrocks__drop_relation(relation) -%}
+  {%- set relation_type = relation.type %}
+  {%- if not relation_type or relation_type is none %}
+      {%- set relation_type = 'table' %}
+  {%- endif %}
+
   {% call statement('drop_relation', auto_begin=False) %}
     {%- if relation.is_materialized_view -%}
         drop materialized view if exists {{ relation }};
     {%- else -%}
-        drop {{ relation.type }} if exists {{ relation }};
+        drop {{ relation_type }} if exists {{ relation }};
     {%- endif -%}
   {% endcall %}
 {%- endmacro %}
@@ -44,4 +49,18 @@
       {{ exceptions.raise_compiler_error(msg) }}
     {% endif %}
   {% endcall %}
+{%- endmacro %}
+
+{% macro starrocks__exchange_relation(first_relation, second_relation) -%}
+  {%- if second_relation.is_view %}
+    {%- set from_results = run_query('show create view ' + first_relation.render() ) %}
+    {%- set to_results = run_query('show create view ' + second_relation.render() ) %}
+    {%- call statement('exchange_view_relation') %}
+        alter view {{ relation1 }} as {{ to_results[0]['Create View'].split('AS',1)[1] }}
+    {%- endcall %}
+  {%- else %}
+    {%- call statement('exchange_relation') %}
+        alter table {{ first_relation }} swap with `{{ second_relation.table }}`;
+    {%- endcall %}
+  {%- endif %}
 {%- endmacro %}

@@ -42,6 +42,7 @@ class StarRocksConfig(AdapterConfig):
     distributed_by: Optional[List[str]] = None
     buckets: Optional[int] = None
     properties: Optional[Dict[str, str]] = None
+    microbatch_use_dynamic_overwrite: Optional[bool] = None
 
 
 class StarRocksAdapter(SQLAdapter):
@@ -180,7 +181,7 @@ class StarRocksAdapter(SQLAdapter):
 
     @override
     def valid_incremental_strategies(self):
-        return ["default", "insert_overwrite", "dynamic_overwrite"]
+        return ["default", "insert_overwrite", "dynamic_overwrite", "microbatch"]
 
 
 def _catalog_filter_schemas(used_schemas: FrozenSet[Tuple[str, str]]) -> Callable[[agate.Row], bool]:

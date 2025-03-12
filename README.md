@@ -38,6 +38,8 @@ $ pip install dbt-starrocks
 |        ❌         |          ❌          |        ✅         |        ✅         |       Expression Partition        |
 |        ❌         |          ❌          |        ❌         |        ❌         |               Kafka               |
 |        ❌         |          ❌          |        ❌         |        ✅         |         Dynamic Overwrite         |
+|        ❌         |          ✅          |        ✅         |        ✅         |  Microbatch (Insert Overwrite)   |
+|        ❌         |          ❌          |        ❌         |        ✅         | Microbatch (Dynamic Overwrite)   |
 
 ### Notice
 1. When StarRocks Version < 2.5, `Create table as` can only set engine='OLAP' and table_type='DUPLICATE'
@@ -111,6 +113,8 @@ models:
 {{ config(materialized='table', table_type='PRIMARY', keys=['customer_id'], order_by=['first_name', 'last_name'] }}
 {{ config(materialized='incremental', table_type='PRIMARY', engine='OLAP', buckets=32, distributed_by=['id']) }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='dynamic_overwrite') }}
+{{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='day', begin='2025-01-01', lookback=1, batch_size='day') }}
+{{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='day', begin='2025-01-01', lookback=1, batch_size='day', microbatch_use_dynamic_overwrite=true) }}
 {{ config(materialized='materialized_view') }}
 {{ config(materialized='materialized_view', properties={"storage_medium":"SSD"}) }}
 {{ config(materialized='materialized_view', refresh_method="ASYNC START('2022-09-01 10:00:00') EVERY (interval 1 day)") }}

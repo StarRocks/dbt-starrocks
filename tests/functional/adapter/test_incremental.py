@@ -61,11 +61,11 @@ class TestBaseIncrementalStrategyModel(ABC, BaseIncremental):
     @staticmethod
     @abstractmethod
     def _get_strategy():
-        raise NotImplemented
+        raise NotImplementedError
 
     @abstractmethod
     def _specific_assertions(self, project):
-        raise NotImplemented
+        raise NotImplementedError
 
     @staticmethod
     def _seeds():
