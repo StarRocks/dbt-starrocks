@@ -101,6 +101,13 @@ models:
   
   // For 'materialized=incremental' in version >= 3.4
   incremental_strategy: 'dynamic_overwrite' // Supported values: ['default', 'insert_overwrite', 'dynamic_overwrite']
+
+  // For 'materialized=incremental' and 'incremental_strategy=microbatch'
+  event_time: 'some_timestamp_column'     // The column name of the event time
+  begin: '2025-01-01'                     // The start time of the incremental data
+  lookback: 1                             // The lookback time of the each incremental run
+  batch_size: 'day'                       // The batch size. Supported values ['year', 'month', 'day', 'hour']
+  microbatch_use_dynamic_overwrite: true  // Whether to use dynamic_overwrite in version >= 3.4
 ```
   
 ### dbt run config:
