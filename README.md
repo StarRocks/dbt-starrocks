@@ -38,6 +38,7 @@ $ pip install dbt-starrocks
 |        ❌         |          ❌          |        ✅         |        ✅         |       Expression Partition        |
 |        ❌         |          ❌          |        ❌         |        ❌         |               Kafka               |
 |        ❌         |          ❌          |        ❌         |        ✅         |         Dynamic Overwrite         |
+|        ❌         |         *4          |        *4        |        ✅         |            Submit task            |
 |        ❌         |          ✅          |        ✅         |        ✅         |  Microbatch (Insert Overwrite)   |
 |        ❌         |          ❌          |        ❌         |        ✅         | Microbatch (Dynamic Overwrite)   |
 
@@ -45,6 +46,7 @@ $ pip install dbt-starrocks
 1. When StarRocks Version < 2.5, `Create table as` can only set engine='OLAP' and table_type='DUPLICATE'
 2. When StarRocks Version >= 2.5, `Create table as` supports table_type='PRIMARY'
 3. When StarRocks Version < 3.1 distributed_by is required
+4. Verify the specific `submit task` support for your version, see [SUBMIT TASK](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/ETL/SUBMIT_TASK/). 
 
 ## Profile Configuration
 
@@ -63,16 +65,18 @@ starrocks:
       password: your_starrocks_password
 ```
 
-| Option   | Description                                             | Required? | Example                        |
-|----------|---------------------------------------------------------|-----------|--------------------------------|
-| type     | The specific adapter to use                             | Required  | `starrocks`                    |
-| host     | The hostname to connect to                              | Required  | `192.168.100.28`               |
-| port     | The port to use                                         | Required  | `9030`                         |
-| schema   | Specify the schema (database) to build models into      | Required  | `analytics`                    |
-| username | The username to use to connect to the server            | Required  | `dbt_admin`                    |
-| password | The password to use for authenticating to the server    | Required  | `correct-horse-battery-staple` |
-| version  | Let Plugin try to go to a compatible starrocks version  | Optional  | `3.1.0`                        |
-| use_pure | set to "true" to use C extensions                       | Optional  | `true`                         |
+| Option              | Description                                                        | Required? | Example                        |
+|---------------------|--------------------------------------------------------------------|-----------|--------------------------------|
+| type                | The specific adapter to use                                        | Required  | `starrocks`                    |
+| host                | The hostname to connect to                                         | Required  | `192.168.100.28`               |
+| port                | The port to use                                                    | Required  | `9030`                         |
+| schema              | Specify the schema (database) to build models into                 | Required  | `analytics`                    |
+| username            | The username to use to connect to the server                       | Required  | `dbt_admin`                    |
+| password            | The password to use for authenticating to the server               | Required  | `correct-horse-battery-staple` |
+| version             | Let Plugin try to go to a compatible starrocks version             | Optional  | `3.1.0`                        |
+| use_pure            | set to "true" to use C extensions                                  | Optional  | `true`                         |
+| is_async            | "true" to submit suitable tasks as etl tasks.                      | Optional  | `true`                         |
+| async_query_timeout | Sets the `query_timeout` value when submitting a task to StarRocks | Optional  | `300`                            |
 
 More details about setting `use_pure` and other connection arguments [here](https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html)
 
@@ -96,7 +100,7 @@ models:
   // Expr partition type requires an expression (e.g., date_trunc) specified in partition_by
   order_by: ['some_column']             // only for PRIMARY table_type
   partition_type: 'RANGE'               // RANGE or LIST or Expr Need to be used in combination with partition_by configuration
-  properties: [{"replication_num":"1", "in_memory": "true"}]
+  properties: {"replication_num":"1", "in_memory": "true"}
   refresh_method: 'async'               // only for materialized view default manual
   
   // For 'materialized=incremental' in version >= 3.4
@@ -159,6 +163,55 @@ Add a new `incremental_strategy` property that supports the following values:
 - `dynamic_overwrite`: Will apply `overwrite` with `dynamic_overwrite = true` to the inserts.
 
 For more details on the different behaviors, see [StarRocks' documentation for INSERT](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/INSERT).
+
+## Submittable ETL tasks
+
+> The implementation of the submittable etl is located in the `impl.py` file.
+
+Setting `is_async: true` in your `profiles.yml` will enable submitting suitable ETL tasks using the `submit task` feature of StarRocks.
+
+This will be automatically wrapped around any statement that supports submission. Setting this manually is currently not supported by the adapter.
+
+The following statements will be submitted automatically:
+
+- `CREATE AS ... SELECT`
+- `INSERT INTO|OVERWRITE`
+- `CACHE SELECT ...`
+
+> See [StarRocks' documentation on SUBMIT TASK](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/ETL/SUBMIT_TASK/)
+
+### Task Polling
+
+Once the task has been submitted, the adapter will periodically poll StarRocks' `information_schema.task_runs` to retrieve the task status. 
+
+The polling is implemented using an exponential backoff, with a maximum delay of 10 minutes. The adapter's connection to the StarRocks' cluster will not be maintained during the waiting period. It will be re-opened right before the next status polling phase.
+
+### Controlling the task timeout
+
+Using the `async_query_timeout` property in the `profiles.yml` will control the value of the `query_timeout` when submitting task.
+
+It's going to be injected in the SQL query submitted to StarRocks:
+
+```sql
+submit /*+set_var(query_timeout={async_query_timeout})*/ task ...
+```
+
+### Example `profiles.yml` configuration
+
+```yml
+my_profile:
+  target: dev
+  outputs:
+    dev:
+      type: starrocks
+      host: host
+      port: 9030
+      schema: schema
+      username: username
+      password: password
+      is_async: true
+      async_query_timeout: 3600 # 1 hour
+```
 
 ## Test Adapter
 Run the following

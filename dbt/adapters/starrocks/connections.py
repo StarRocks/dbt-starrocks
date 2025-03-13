@@ -45,6 +45,8 @@ class StarRocksCredentials(Credentials):
     charset: Optional[str] = None
     version: Optional[str] = None
     use_pure: Optional[str] = None
+    is_async: Optional[bool] = False
+    async_query_timeout: Optional[int] = 300
 
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -82,6 +84,8 @@ class StarRocksCredentials(Credentials):
             "catalog",
             "username",
             "use_pure",
+            "is_async",
+            "async_query_timeout",
         )
 
 
