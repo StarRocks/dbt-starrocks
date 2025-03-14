@@ -39,6 +39,8 @@ $ pip install dbt-starrocks
 |        ❌         |          ❌          |        ❌         |        ❌         |               Kafka               |
 |        ❌         |          ❌          |        ❌         |        ✅         |         Dynamic Overwrite         |
 |        ❌         |         *4          |        *4        |        ✅         |            Submit task            |
+|        ❌         |          ✅          |        ✅         |        ✅         |  Microbatch (Insert Overwrite)   |
+|        ❌         |          ❌          |        ❌         |        ✅         | Microbatch (Dynamic Overwrite)   |
 
 ### Notice
 1. When StarRocks Version < 2.5, `Create table as` can only set engine='OLAP' and table_type='DUPLICATE'
@@ -103,6 +105,13 @@ models:
   
   // For 'materialized=incremental' in version >= 3.4
   incremental_strategy: 'dynamic_overwrite' // Supported values: ['default', 'insert_overwrite', 'dynamic_overwrite']
+
+  // For 'materialized=incremental' and 'incremental_strategy=microbatch'
+  event_time: 'some_timestamp_column'     // The column name of the event time
+  begin: '2025-01-01'                     // The start time of the incremental data
+  lookback: 1                             // The lookback time of the each incremental run
+  batch_size: 'day'                       // The batch size. Supported values ['year', 'month', 'day', 'hour']
+  microbatch_use_dynamic_overwrite: true  // Whether to use dynamic_overwrite in version >= 3.4
 ```
   
 ### dbt run config:
@@ -115,6 +124,8 @@ models:
 {{ config(materialized='table', table_type='PRIMARY', keys=['customer_id'], order_by=['first_name', 'last_name'] }}
 {{ config(materialized='incremental', table_type='PRIMARY', engine='OLAP', buckets=32, distributed_by=['id']) }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='dynamic_overwrite') }}
+{{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='report_day', begin='2025-01-01', lookback=1, batch_size='day') }}
+{{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='report_day', begin='2025-01-01', lookback=1, batch_size='day', microbatch_use_dynamic_overwrite=true) }}
 {{ config(materialized='materialized_view') }}
 {{ config(materialized='materialized_view', properties={"storage_medium":"SSD"}) }}
 {{ config(materialized='materialized_view', refresh_method="ASYNC START('2022-09-01 10:00:00') EVERY (interval 1 day)") }}

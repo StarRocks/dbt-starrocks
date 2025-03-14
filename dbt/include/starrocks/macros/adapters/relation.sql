@@ -45,3 +45,9 @@
     {% endif %}
   {% endcall %}
 {%- endmacro %}
+
+{% macro starrocks__exchange_relation(first_relation, second_relation) -%}
+  {%- call statement('exchange_relation') %}
+      alter table {{ first_relation }} swap with `{{ second_relation.table }}`;
+  {%- endcall %}
+{%- endmacro %}
