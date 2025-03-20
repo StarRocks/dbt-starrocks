@@ -16,7 +16,8 @@ import re
 import time
 import uuid
 from concurrent.futures import Future
-from typing import Callable, Dict, List, Optional, Set, FrozenSet, Tuple, TypeAlias
+from typing import Callable, Dict, List, Optional, Set, FrozenSet, Tuple
+from typing_extensions import TypeAlias
 
 import agate
 import dbt.exceptions
