@@ -34,7 +34,7 @@
 {%- macro _get_strategy_sql(target_relation, temp_relation, dest_cols_csv, is_dynamic_overwrite) -%}
     {%- set overwrite_type = "TRUE" if is_dynamic_overwrite else "FALSE" %}
 
-    insert overwrite /*+SET_VAR(dynamic_overwrite = {{ overwrite_type }})*/ {{ target_relation }}({{ dest_cols_csv }})
+    insert /*+SET_VAR(dynamic_overwrite = {{ overwrite_type }})*/ overwrite {{ target_relation }} ({{ dest_cols_csv }})
     (
         select {{ dest_cols_csv }}
         from {{ temp_relation }}
