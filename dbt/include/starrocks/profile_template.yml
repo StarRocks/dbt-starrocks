@@ -31,6 +31,9 @@ prompts:
     hint: 'password'
     hide_input: true
     default: ''
+  auth_plugin:
+    hint: 'If you are using LDAP authentication, you need change to mysql_clear_password.'
+    default: ''
   version:
     default: ''
 

@@ -21,6 +21,7 @@ default:
       schema: <schema>
       username: <username>
       password: <password>
+      auth_plugin: <auth_plugin>  # optional
     prod:
       type: starrocks
       host: <host>
@@ -28,4 +29,5 @@ default:
       schema: <schema>
       username: <username>
       password: <password>
+      auth_plugin: <auth_plugin>  # optional
   target: dev
