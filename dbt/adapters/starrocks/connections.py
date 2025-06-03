@@ -47,7 +47,8 @@ class StarRocksCredentials(Credentials):
     use_pure: Optional[str] = None
     is_async: Optional[bool] = False
     async_query_timeout: Optional[int] = 300
-
+    auth_plugin: Optional[str] = ''
+    
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -86,6 +87,7 @@ class StarRocksCredentials(Credentials):
             "use_pure",
             "is_async",
             "async_query_timeout",
+            "auth_plugin",
         )
 
 
@@ -115,7 +117,7 @@ class StarRocksConnectionManager(SQLConnectionManager):
 
         credentials = cls.get_credentials(connection.credentials)
         kwargs = {"host": credentials.host, "username": credentials.username,
-                  "password": credentials.password, "database": credentials.catalog + "." + credentials.schema}
+                  "password": credentials.password, "database": credentials.catalog + "." + credentials.schema, "auth_plugin":credentials.auth_plugin}
 
         kwargs["buffered"] = True
 
