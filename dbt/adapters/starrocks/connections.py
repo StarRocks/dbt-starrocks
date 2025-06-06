@@ -92,17 +92,40 @@ class StarRocksCredentials(Credentials):
 
 
 def _parse_version(result):
+    """Parse StarRocks version string like '3.4.3-a01aa59' into tuple (3, 4, 3)"""
     default_version = (999, 999, 999)
-    first_part = None
-
-    if '-' in result:
-        first_part = result.split('-')[0]
-    if ' ' in result:
-        first_part = result.split(' ')[0]
-
-    if first_part and len(first_part.split('.')) == 3:
-        return int(first_part[0]), int(first_part[2]), int(first_part[4])
-
+    
+    try:
+        # Handle version strings like "3.4.3-a01aa59" or "3.4.3 some other info"
+        version_part = result
+        
+        # Split on '-' first (for build info like 'a01aa59')
+        if '-' in result:
+            version_part = result.split('-')[0]
+        
+        # Split on space (for other info)
+        if ' ' in version_part:
+            version_part = version_part.split(' ')[0]
+        
+        # Now parse the version numbers
+        version_numbers = version_part.split('.')
+        
+        if len(version_numbers) >= 3:
+            major = int(version_numbers[0])
+            minor = int(version_numbers[1]) 
+            patch = int(version_numbers[2])
+            return (major, minor, patch)
+        elif len(version_numbers) == 2:
+            major = int(version_numbers[0])
+            minor = int(version_numbers[1])
+            return (major, minor, 0)
+        elif len(version_numbers) == 1:
+            major = int(version_numbers[0])
+            return (major, 0, 0)
+            
+    except (ValueError, IndexError) as e:
+        logger.debug(f"Failed to parse version '{result}': {e}")
+    
     return default_version
 
 
@@ -165,21 +188,31 @@ class StarRocksConnectionManager(SQLConnectionManager):
             cursor = connection.handle.cursor()
             try:
                 cursor.execute("select current_version()")
-                connection.handle.server_version = _parse_version(
-                    cursor.fetchone()[0])
+                # Store StarRocks version info in connection attributes instead of overwriting server_version
+                starrocks_version_str = cursor.fetchone()[0]
+                connection.starrocks_version = _parse_version(starrocks_version_str)
+                connection.starrocks_version_string = starrocks_version_str
+                logger.debug(f"Detected StarRocks version: {starrocks_version_str} -> {connection.starrocks_version}")
             except Exception as e:
                 logger.debug(
                     "Got an error when obtain StarRocks version exception: '{}'".format(e))
+                # Set default version if detection fails
+                connection.starrocks_version = (999, 999, 999)
+                connection.starrocks_version_string = "unknown"
         else:
             version = credentials.version.strip().split('.')
             if len(version) == 3:
-                connection.handle.server_version = (
+                connection.starrocks_version = (
                     int(version[0]), int(version[1]), int(version[2]))
+                connection.starrocks_version_string = credentials.version
             elif len(version) == 2:
-                connection.handle.server_version = (
+                connection.starrocks_version = (
                     int(version[0]), int(version[1]), 0)
+                connection.starrocks_version_string = credentials.version
             else:
                 logger.debug("Config version '{}' is invalid".format(version))
+                connection.starrocks_version = (999, 999, 999)
+                connection.starrocks_version_string = "invalid"
 
         return connection
 
