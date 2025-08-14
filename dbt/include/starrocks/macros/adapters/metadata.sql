@@ -20,7 +20,7 @@
       null as "database",
       tbl.table_name as name,
       tbl.table_schema as "schema",
-      case when tbl.table_type = 'TABLE' then 'table'
+      case when tbl.table_type = 'TABLE' or tbl.table_type = 'BASE TABLE' then 'table'
            when tbl.table_type = 'VIEW' and mv.table_name is null then 'view'
            when tbl.table_type = 'VIEW' and mv.table_name is not null then 'materialized_view'
            when tbl.table_type = 'SYSTEM VIEW' then 'system_view'
