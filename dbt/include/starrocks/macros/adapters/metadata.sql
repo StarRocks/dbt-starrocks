@@ -41,7 +41,7 @@
           null as "table_database",
           table_schema,
           table_name,
-          case when table_type = 'BASE TABLE' then 'table'
+          case when table_type = 'BASE TABLE' or table_type = 'TABLE' then 'table'
                when table_type = 'VIEW' then 'view'
                else table_type
           end as table_type,
