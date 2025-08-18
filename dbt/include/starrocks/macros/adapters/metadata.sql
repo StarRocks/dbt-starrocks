@@ -20,7 +20,7 @@
       null as "database",
       tbl.table_name as name,
       tbl.table_schema as "schema",
-      case when tbl.table_type = 'BASE TABLE' then 'table'
+      case when tbl.table_type = 'BASE TABLE' or tbl.table_type = 'TABLE' then 'table'
            when tbl.table_type = 'VIEW' and mv.table_name is null then 'view'
            when tbl.table_type = 'VIEW' and mv.table_name is not null then 'materialized_view'
            when tbl.table_type = 'SYSTEM VIEW' then 'system_view'
@@ -41,7 +41,7 @@
           null as "table_database",
           table_schema,
           table_name,
-          case when table_type = 'BASE TABLE' then 'table'
+          case when table_type = 'BASE TABLE' or table_type = 'TABLE' then 'table'
                when table_type = 'VIEW' then 'view'
                else table_type
           end as table_type,
