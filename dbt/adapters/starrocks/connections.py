@@ -233,3 +233,6 @@ class StarRocksConnectionManager(SQLConnectionManager):
             rows_affected=num_rows,
             code=code
         )
+
+    def add_begin_query(self):
+        return self.add_query("", auto_begin=False)
