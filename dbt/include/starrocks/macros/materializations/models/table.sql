@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-{% macro starrocks__create_table_as(temporary, relation, sql) -%}
+{% macro starrocks__create_table_as(temporary, relation, sql, is_external=false) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
   {%- set engine = config.get('engine', 'OLAP') -%}
   {%- set indexs = config.get('indexs') -%}
@@ -32,7 +32,9 @@
     {%- endfor -%}
   {%- endif -%}
 
-  {%- if engine == 'OLAP' -%}
+  {%- if is_external -%}
+    {{ starrocks__external_table() }}
+  {%- elif engine == 'OLAP' -%}
     {{ starrocks__olap_table(True) }}
   {%- else -%}
     {%- set msg -%}
