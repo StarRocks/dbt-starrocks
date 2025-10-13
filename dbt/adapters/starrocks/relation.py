@@ -84,7 +84,7 @@ class StarRocksRelation(BaseRelation):
         return self.type == StarRocksRelationType.MaterializedView
 
     def render(self):
-        if self.database is not None and self.schema is not None:
+        if self.database is not None:
             return "{catalog}.{database}.{table}".format(
                 catalog=self.quoted(self.database),
                 database=self.quoted(self.schema),
