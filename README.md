@@ -70,7 +70,8 @@ starrocks:
 | type                | The specific adapter to use                                        | Required  | `starrocks`                    |
 | host                | The hostname to connect to                                         | Required  | `192.168.100.28`               |
 | port                | The port to use                                                    | Required  | `9030`                         |
-| schema              | Specify the schema (database) to build models into                 | Required  | `analytics`                    |
+| catalog             | Specify the catalog to build models into                           | Optional  | `default_catalog`
+| schema              | Specify the schema (database in StarRocks) to build models into    | Required  | `analytics`                    |
 | username            | The username to use to connect to the server                       | Required  | `dbt_admin`                    |
 | password            | The password to use for authenticating to the server               | Required  | `correct-horse-battery-staple` |
 | version             | Let Plugin try to go to a compatible starrocks version             | Optional  | `3.1.0`                        |
