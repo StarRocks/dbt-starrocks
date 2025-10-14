@@ -20,7 +20,7 @@
   
   {%- set properties = config.get('properties', {}) -%}
   {%- set catalog = config.get('catalog', target.catalog) -%}
-  {%- set database = config.get('database') or target.schema -%}
+  {%- set database = config.get('database') or target_relation.schema -%}
   {%- set on_table_exists = config.get('on_table_exists', 'replace') -%}
   
   {%- if catalog == 'default_catalog' -%}
