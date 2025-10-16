@@ -83,12 +83,13 @@ class StarRocksRelation(BaseRelation):
     def is_materialized_view(self) -> bool:
         return self.type == StarRocksRelationType.MaterializedView
 
-    def __post_init__(self):
-        if self.database is not None:
-            raise DbtRuntimeError(
-                f"Cannot set database {self.database} in StarRocks!")
-
     def render(self):
+        if self.database is not None:
+            return "{catalog}.{database}.{table}".format(
+                catalog=self.quoted(self.database),
+                database=self.quoted(self.schema),
+                table=self.quoted(self.identifier)
+            )
         if self.include_policy.database and self.include_policy.schema:
             raise DbtRuntimeError(
                 "Got a StarRocks relation with schema and database set to include, but only one can be set"

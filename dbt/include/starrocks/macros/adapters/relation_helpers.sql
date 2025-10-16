@@ -165,3 +165,22 @@
       {% endif -%}
   {% endif -%}
 {%- endmacro -%}
+
+{% macro starrocks__external_table() -%}
+  {% set properties = config.get('properties') %}
+  {% set partition_by = config.get('partition_by') %}
+  {%- set partition_type = config.get('partition_type', 'Expr') -%}
+  {%- set partition_by_init = config.get('partition_by_init') -%}
+
+  {% if partition_by is not none %}
+    {{ starrocks__partition_by(partition_type, partition_by, partition_by_init) }}
+  {% endif %}
+
+  {% if properties is not none %}
+    PROPERTIES (
+      {% for key, value in properties.items() %}
+        "{{ key }}" = "{{ value }}"{% if not loop.last %},{% endif %}
+      {% endfor %}
+    )
+  {% endif %}
+{%- endmacro %}
