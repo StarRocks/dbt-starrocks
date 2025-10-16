@@ -68,9 +68,32 @@
         database=database,
         type='table',
     ) -%}
+    {%- set tmp_relation = make_temp_relation(this).incorporate(type='table') -%}
+
+    {%- set catalog = config.get('catalog', target.catalog) -%}
+    {%- set database = config.get('database') or target.schema -%}
+
+    {%- if catalog != 'default_catalog' and database -%}
+      {%- set is_external = true -%}
+    {%- endif -%}
+
+    {%- if is_external -%}
+      {%- set target_relation = adapter.Relation.create(
+        database=catalog,
+        schema=database,
+        identifier=target_relation.identifier,
+        type='table'
+      ) -%}
+      {%- set tmp_relation = adapter.Relation.create(
+        database=catalog,
+        schema=database,
+        identifier=tmp_relation.identifier,
+        type='table'
+      ) -%}
+    {%- endif -%}
+
     {%- set existing_relation = load_relation(this) -%}
     {%- set incremental_strategy = starrocks__validate_get_incremental_strategy(config) -%}
-    {%- set tmp_relation = make_temp_relation(this).incorporate(type='table') -%}
 
     {{ drop_relation_if_exists(tmp_relation) }}
 
@@ -79,16 +102,16 @@
     {{ run_hooks(pre_hooks) }}
 
     {%- if existing_relation is none -%}
-        {%- call statement('main') -%}
-            {{ starrocks__create_table_as(False, target_relation, compiled_code) }}
-        {%- endcall -%}
+      {%- call statement('main') -%}
+          {{ starrocks__create_table_as(False, target_relation, compiled_code, is_external) }}
+      {%- endcall -%}
 
     {%- elif existing_relation.is_view -%}
         {#-- Can't overwrite a view with a table, drop it before creating table --#}
         {{ log("Dropping relation " ~ target_relation ~ " because it is a view and this model is a table.") }}
         {%- do adapter.drop_relation(existing_relation) -%}
         {%- call statement('main') -%}
-            {{ starrocks__create_table_as(False, target_relation, compiled_code) }}
+            {{ starrocks__create_table_as(False, target_relation, compiled_code, is_external) }}
         {%- endcall -%}
 
     {%- elif full_refresh_mode -%}
@@ -96,14 +119,16 @@
         {%- set backup_identifier = existing_relation.identifier ~ "__dbt_backup" -%}
         {%- set backup_relation = existing_relation.incorporate(path={"identifier": backup_identifier}) -%}
         {%- do adapter.drop_relation(backup_relation) -%}
+
         {%- call statement('main') -%}
-            {{ starrocks__create_table_as(False, backup_relation, compiled_code) }}
+            {{ starrocks__create_table_as(False, backup_relation, compiled_code, is_external) }}
         {%- endcall -%}
+
         {%- do starrocks__exchange_relation(target_relation, backup_relation) -%}
     {% else %}
         {#-- Create the temp relation, either as a view or as a temp table --#}
         {%- call statement('create_tmp_relation') -%}
-            {{ starrocks__create_table_as(True, tmp_relation, compiled_code) }}
+            {{ starrocks__create_table_as(True, tmp_relation, compiled_code, is_external) }}
         {%- endcall -%}
 
         {%- do adapter.expand_target_column_types(

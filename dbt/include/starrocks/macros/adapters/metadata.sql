@@ -26,7 +26,7 @@
            when tbl.table_type = 'SYSTEM VIEW' then 'system_view'
            else 'unknown' end as table_type
     from information_schema.tables tbl
-    left join information_schema.materialized_views mv
+    left join default_catalog.information_schema.materialized_views mv
     on tbl.TABLE_SCHEMA = mv.TABLE_SCHEMA
     and tbl.TABLE_NAME = mv.TABLE_NAME
     where tbl.table_schema = '{{ schema_relation.schema }}'
