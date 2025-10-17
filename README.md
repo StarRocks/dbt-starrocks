@@ -9,10 +9,8 @@ This project is **under development**.
 
 The `dbt-starrocks` package contains all the code to enable [dbt](https://getdbt.com) to work with [StarRocks](https://www.starrocks.io).
 
-This is an experimental plugin:
-- We have not tested it extensively
 - Requires StarRocks version 2.5.0 or higher  
-  - version 3.1.x is recommended
+  - version 3.4.x is recommended
   - StarRocks versions 2.4 and below are no longer supported
 
 
@@ -60,6 +58,7 @@ starrocks:
       type: starrocks
       host: localhost
       port: 9030
+      catalog: default_catalog
       schema: analytics
       username: your_starrocks_username
       password: your_starrocks_password
