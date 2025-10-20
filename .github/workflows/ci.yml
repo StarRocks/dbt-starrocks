@@ -2,7 +2,7 @@ name: Integration Tests
 
 on:
   push:
-    branches: [main, develop, ci-pipeline]
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
