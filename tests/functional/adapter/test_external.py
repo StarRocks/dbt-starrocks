@@ -26,20 +26,20 @@ external_catalog_table_sql = """
         materialized = 'table',
         catalog = 'iceberg_catalog',
         database = 'dbt_test_db',
-        partition_by = ['some_date'], 
+        partition_by = ['some_date'],
     )
 }}
 select * from {{ ref('base') }}
 """.lstrip()
 
-@pytest.mark.external
-class TestExternalCatalogTable:
+
+class TestExternalCatalogTable(BaseSimpleMaterializations):
     """Test basic table materialization in external catalog"""
 
     @pytest.fixture(scope="class")
     def seeds(self):
         return {
-            "base.csv": seed_base_csv,
+            "base.csv": seed_base_csv
         }
 
     @pytest.fixture(scope="class")
@@ -47,13 +47,13 @@ class TestExternalCatalogTable:
         return {
             "external_table.sql": external_catalog_table_sql,
         }
-    
+
     @pytest.fixture(scope="class", autouse=True)
     def setup_external_catalog(self, project):
         """Create external database with location"""
         project.run_sql("""
             CREATE DATABASE IF NOT EXISTS iceberg_catalog.dbt_test_db
-            PROPERTIES ("location" = "<s3_location>")
+            PROPERTIES ("location" = "s3://warehouse/dbt_test_db")
         """)
         yield
 
@@ -63,17 +63,17 @@ class TestExternalCatalogTable:
     def test_external_catalog_table(self, project):
         results = run_dbt(["seed"])
         assert len(results) == 1
-    
+
         results = run_dbt()
         assert len(results) == 1
-        
+
         relation = relation_from_name(project.adapter, "external_table")
         result = project.run_sql(
-            f"select count(*) as num_rows from iceberg_catalog.dbt_test_db.{relation.identifier}", 
+            f"select count(*) as num_rows from iceberg_catalog.dbt_test_db.{relation.identifier}",
             fetch="one"
         )
         assert result[0] == 10
-        
+
         # Verify it's actually a table
         expected = {
             "base": "table",
