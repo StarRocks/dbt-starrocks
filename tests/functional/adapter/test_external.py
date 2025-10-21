@@ -33,13 +33,13 @@ select * from {{ ref('base') }}
 """.lstrip()
 
 
-class TestExternalCatalogTable(BaseSimpleMaterializations):
+class TestExternalCatalogTable:
     """Test basic table materialization in external catalog"""
 
     @pytest.fixture(scope="class")
     def seeds(self):
         return {
-            "base.csv": seed_base_csv
+            "base.csv": seed_base_csv,
         }
 
     @pytest.fixture(scope="class")
@@ -53,21 +53,19 @@ class TestExternalCatalogTable(BaseSimpleMaterializations):
         """Create external database with location"""
         project.run_sql("""
             CREATE DATABASE IF NOT EXISTS iceberg_catalog.dbt_test_db
-            PROPERTIES ("location" = "s3://cs-iceberg-test/warehouse/dbt_test_db.db")
+            PROPERTIES ("location" = "<s3_location>")
         """)
         yield
 
-        project.run_sql("DROP TABLE iceberg_catalog.dbt_test_db.external_table")
+        project.run_sql("DROP TABLE IF EXISTS iceberg_catalog.dbt_test_db.external_table")
         project.run_sql("DROP DATABASE IF EXISTS iceberg_catalog.dbt_test_db FORCE")
-    
+
     def test_external_catalog_table(self, project):
         results = run_dbt(["seed"])
         assert len(results) == 1
-
-        print("Before dbt")
+    
         results = run_dbt()
         assert len(results) == 1
-        print("After dbt")
         
         relation = relation_from_name(project.adapter, "external_table")
         result = project.run_sql(
@@ -75,7 +73,7 @@ class TestExternalCatalogTable(BaseSimpleMaterializations):
             fetch="one"
         )
         assert result[0] == 10
-
+        
         # Verify it's actually a table
         expected = {
             "base": "table",
