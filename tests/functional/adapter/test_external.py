@@ -33,13 +33,13 @@ select * from {{ ref('base') }}
 """.lstrip()
 
 
-class TestExternalCatalogTable(BaseSimpleMaterializations):
+class TestExternalCatalogTable:
     """Test basic table materialization in external catalog"""
 
     @pytest.fixture(scope="class")
     def seeds(self):
         return {
-            "base.csv": seed_base_csv
+            "base.csv": seed_base_csv,
         }
 
     @pytest.fixture(scope="class")
