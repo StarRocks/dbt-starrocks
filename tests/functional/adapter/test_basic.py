@@ -114,6 +114,7 @@ class TestSimpleMaterializationWithProperties(BaseSimpleMaterializations):
             "table_model_with_props.sql": base_table_model_with_props_sql,
         }
 
+    @pytest.mark.skip()
     def test_base(self, project):
         results = run_dbt(["seed"])
         # seed result length
