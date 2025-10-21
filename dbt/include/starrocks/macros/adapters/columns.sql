@@ -31,14 +31,17 @@
     order by ordinal_position
   {% endcall %}
 
-  {% call statement('desc_columns_in_relation', fetch_result=True) %}
-        desc `{{ relation.schema }}`.`{{ relation.identifier }}`
-  {% endcall %}
-
   {% set table = load_result('get_columns_in_relation').table %}
-  {% set desc_table = load_result('desc_columns_in_relation').table %}
-
-  {{ return(starrocks__sql_convert_columns_in_relation(relation, table, desc_table)) }}
+  
+  {% if table.rows %}
+    {% call statement('desc_columns_in_relation', fetch_result=True) %}
+      desc `{{ relation.schema }}`.`{{ relation.identifier }}`
+    {% endcall %}
+    {% set desc_table = load_result('desc_columns_in_relation').table %}
+    {{ return(starrocks__sql_convert_columns_in_relation(relation, table, desc_table)) }}
+  {% else %}
+    {{ return([]) }}
+  {% endif %}
 {% endmacro %}
 
 {% macro starrocks__sql_convert_columns_in_relation(relation, table, desc_table) -%}
