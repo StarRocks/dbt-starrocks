@@ -1,0 +1,58 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      starrocks:
+        image: starrocks/allin1-ubuntu:3.5.6
+        ports:
+          - 9030:9030
+          - 8030:8030
+          - 8040:8040
+        options: >-
+          --health-cmd "mysql -h127.0.0.1 -P9030 -uroot -e 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 30s
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Python
+        run: uv venv --python 3.11
+      
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client=8.0*
+      
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          uv pip install -r dev_requirements.txt
+          uv pip install -e .
+
+      - name: Run unit tests
+        run: |
+          source .venv/bin/activate
+          uv run pytest tests/unit
+
+      - name: Run integration tests
+        run: |
+          source .venv/bin/activate
+          sleep 30
+          uv run pytest tests/functional
