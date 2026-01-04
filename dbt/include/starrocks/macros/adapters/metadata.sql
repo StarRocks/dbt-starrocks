@@ -72,7 +72,7 @@
         columns.column_type,
         columns.column_comment
     from tables
-    join columns using (table_schema, table_name)
+    join columns on tables.table_schema = columns.table_schema and tables.table_name = columns.table_name
     where tables.table_schema not in ('information_schema', '__statistics__')
     and (
     {%- for schema in schemas -%}
