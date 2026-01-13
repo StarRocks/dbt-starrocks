@@ -130,8 +130,10 @@ class StarRocksAdapter(SQLAdapter):
             status = table[0].get("STATE", "unknown")
             if status == "FAILED":
                 _error_msg = table[0].get("ERROR_MESSAGE", "")
-                logger.error(f"Task [{task_id}] failed with status [{status}] and error message: {_error_msg}")
-                return response, table
+                raise dbt.exceptions.DbtRuntimeError(
+                    f"Task [{task_id}] failed with status "
+                    f"[{status}] and error message: {_error_msg}"
+                )
 
             elif status in ["SUCCESS", "MERGED", "unknown"]:
                 logger.info(f"Task [{task_id}] finished with status [{status}]")
