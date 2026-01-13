@@ -20,6 +20,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Check CI status
         run: |
@@ -27,12 +30,16 @@ jobs:
 
           # Get the latest CI run for this commit
           CI_STATUS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/check-runs \
-            --jq '.check_runs[] | select(.name == "integration-test") | .conclusion')
+            --jq '[.check_runs[] | select(.name == "integration-test")] | first | .conclusion // empty')
 
           if [ "$CI_STATUS" = "success" ]; then
             echo "CI workflow passed for commit ${{ github.sha }}"
+          elif [ -z "$CI_STATUS" ]; then
+            echo "CI workflow has not run for this commit"
+            echo "Please ensure the 'Integration Tests' workflow passes before releasing."
+            exit 1
           else
-            echo "CI workflow has not passed for this commit (status: ${CI_STATUS:-not found})"
+            echo "CI workflow has not passed for this commit (status: $CI_STATUS)"
             echo "Please ensure the 'Integration Tests' workflow passes before releasing."
             exit 1
           fi
@@ -96,14 +103,13 @@ jobs:
           fi
 
           # Save changelog to file to preserve formatting
-          echo "$CHANGELOG" > /tmp/release_notes.md
+          printf '%s\n' "$CHANGELOG" > /tmp/release_notes.md
           echo "Release notes:"
           cat /tmp/release_notes.md
 
       - name: Build package
         run: |
           source .venv/bin/activate
-          uv pip install build
           python -m build
 
       - name: Dry-run summary
