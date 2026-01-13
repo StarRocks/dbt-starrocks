@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip PyPI publish and GitHub release)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Python
+        run: uv venv --python 3.11
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client=8.0*
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          uv pip install -r dev_requirements.txt
+          uv pip install -e .
+
+      - name: Read version from file
+        id: get_version
+        run: |
+          VERSION=$(grep -E "^version = " dbt/adapters/starrocks/__version__.py | cut -d'"' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version to release: $VERSION"
+
+      - name: Verify version consistency
+        run: |
+          VERSION_FILE=$(grep -E "^version = " dbt/adapters/starrocks/__version__.py | cut -d'"' -f2)
+          VERSION_SETUP=$(grep -E "^package_version = " setup.py | cut -d'"' -f2)
+          if [ "$VERSION_FILE" != "$VERSION_SETUP" ]; then
+            echo "Error: Version mismatch between __version__.py ($VERSION_FILE) and setup.py ($VERSION_SETUP)"
+            exit 1
+          fi
+          echo "Version consistency verified: $VERSION_FILE"
+
+      - name: Check if tag exists
+        run: |
+          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "Error: Tag v${{ steps.get_version.outputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Run unit tests
+        run: |
+          source .venv/bin/activate
+          uv run pytest tests/unit
+
+      - name: Build package
+        run: |
+          source .venv/bin/activate
+          uv pip install build
+          python -m build
+
+      - name: Dry-run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "Version: ${{ steps.get_version.outputs.version }}"
+          echo "Tag: v${{ steps.get_version.outputs.version }}"
+          echo ""
+          echo "Build artifacts created:"
+          ls -lh dist/
+          echo ""
+          echo "Release notes would be:"
+          cat /tmp/release_notes.md
+
+      - name: Publish to PyPI
+        if: ${{ !inputs.dry_run }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          if [ -f CHANGELOG.md ]; then
+            # Extract the changelog section for this version
+            CHANGELOG=$(awk "/## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md)
+            if [ -z "$CHANGELOG" ]; then
+              echo "No changelog entry found for version $VERSION"
+              CHANGELOG="Release version $VERSION"
+            fi
+          else
+            echo "CHANGELOG.md not found"
+            CHANGELOG="Release version $VERSION"
+          fi
+          # Save changelog to file to preserve formatting
+          echo "$CHANGELOG" > /tmp/release_notes.md
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: v${{ steps.get_version.outputs.version }}
+          body_path: /tmp/release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
