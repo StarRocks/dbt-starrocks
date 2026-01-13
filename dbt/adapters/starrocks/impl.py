@@ -131,7 +131,7 @@ class StarRocksAdapter(SQLAdapter):
             if status == "FAILED":
                 _error_msg = table[0].get("ERROR_MESSAGE", "")
                 raise dbt.exceptions.DbtRuntimeError(
-                    f"Task [{task_id}] failed with status: "
+                    f"Task [{task_id}] failed with status "
                     f"[{status}] and error message: {_error_msg}"
                 )
 
