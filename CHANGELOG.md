@@ -7,17 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-### Changed
-
-### Deprecated
-
-### Removed
-
 ### Fixed
-
-### Security
+- `get_catalog` macro (#89)
 
 ## [1.11.0] - 2025-10-16
 
@@ -102,15 +93,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Server version detection issue
 - CTE relation type handling
 - Better defaults for testing
-
-## [1.1.1] - 2023-07-20
-
-### Added
-- Table supports multiple data models (#10)
-
-### Fixed
-- StarRocks adapter availability issue (#3)
-- `distributed_by` parameter
-
-### Changed
-- Initial project structure and core functionality
