@@ -50,7 +50,7 @@ class TestBinaryKeyValidation:
     def test_invalid_key_succeeds(self):
         """
         Expected behavior:
-        - dbt run FAILS with DbtRuntimeError
+        - dbt run FAILS
         """
         with pytest.raises(AssertionError):
             run_dbt(["run", "--select", "binary_key_model"])
