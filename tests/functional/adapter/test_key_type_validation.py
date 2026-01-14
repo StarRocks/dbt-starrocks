@@ -13,7 +13,7 @@ invalid_model_sql = """
 ) }}
 select
     cast(x'010121' as varbinary(16)) as hk_col
-"""
+""".lstrip()
 
 valid_model_sql = """
 {{ config(
@@ -25,7 +25,19 @@ valid_model_sql = """
 ) }}
 select
     cast(123 as bigint) as bigint_col
-"""
+""".lstrip()
+
+@pytest.fixture(scope="class")
+def dbt_profile_target():
+    return {
+        'type': 'starrocks',
+        'username': 'root',
+        'password': '',
+        'port': 9030,
+        'host': 'localhost',
+        'is_async': True,
+        'async_query_timeout': 10,
+    }
 
 class TestBinaryKeyValidation:
 
