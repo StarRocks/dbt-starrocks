@@ -47,7 +47,7 @@ class TestBinaryKeyValidation:
             "valid_key_model.sql": valid_model_sql,
         }
 
-    def test_invalid_key_succeeds(self):
+    def test_invalid_key_fails(self):
         """
         Expected behavior:
         - dbt run FAILS
