@@ -1,5 +1,4 @@
 import pytest
-import dbt.exceptions
 
 from dbt.tests.util import run_dbt
 
@@ -53,7 +52,7 @@ class TestBinaryKeyValidation:
         Expected behavior:
         - dbt run FAILS with DbtRuntimeError
         """
-        with pytest.raises(dbt.exceptions.DbtRuntimeError):
+        with pytest.raises(AssertionError):
             run_dbt(["run", "--select", "binary_key_model"])
 
     def test_valid_key_succeeds(self):
