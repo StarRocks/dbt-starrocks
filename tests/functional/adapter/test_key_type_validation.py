@@ -38,12 +38,12 @@ def dbt_profile_target():
         'async_query_timeout': 10,
     }
 
-class TestBinaryKeyValidation:
+class TestKeyValidation:
 
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "binary_key_model.sql": invalid_model_sql,
+            "invalid_key_model.sql": invalid_model_sql,
             "valid_key_model.sql": valid_model_sql,
         }
 
@@ -53,7 +53,7 @@ class TestBinaryKeyValidation:
         - dbt run FAILS
         """
         with pytest.raises(AssertionError):
-            run_dbt(["run", "--select", "binary_key_model"])
+            run_dbt(["run", "--select", "invalid_key_model"])
 
     def test_valid_key_succeeds(self):
         """
