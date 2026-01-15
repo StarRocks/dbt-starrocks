@@ -47,7 +47,7 @@ class TestKeyValidation:
             "valid_key_model.sql": valid_model_sql,
         }
 
-    def test_invalid_key_fails(self):
+    def test_invalid_key_fails(self, project):
         """
         Expected behavior:
         - dbt run FAILS
@@ -55,7 +55,7 @@ class TestKeyValidation:
         with pytest.raises(AssertionError):
             run_dbt(["run", "--select", "invalid_key_model"])
 
-    def test_valid_key_succeeds(self):
+    def test_valid_key_succeeds(self, project):
         """
         Expected behavior:
         - dbt run SUCCEEDS and table is created
