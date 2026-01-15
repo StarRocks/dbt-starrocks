@@ -100,6 +100,10 @@ class StarRocksAdapter(SQLAdapter):
         """
         Polls for the completion of a task.
 
+        Task status is retrieved from `information_schema.task_runs`, which exposes
+        runtime metadata for async tasks executed by StarRocks.
+        See: https://docs.starrocks.io/docs/sql-reference/information_schema/task_runs/
+
         :param task_id: The task ID to poll for.
         :return: A tuple of the execution status and polling results.
         """
@@ -113,36 +117,38 @@ class StarRocksAdapter(SQLAdapter):
             self.connections.open(_connection)
 
             # Get the status from task_runs
-            response, table = super().execute(sql=_poll_sql, fetch=True, limit=1)
+            response, task_run_status = super().execute(sql=_poll_sql, fetch=True, limit=1)
             if response.code != 'SUCCESS':
                 logger.error(
                     f"Error: Could not poll task [{task_id}]. "
                     f"Reason: failed with response.code: [{response.code}]"
                 )
-                return response, table
+                return response, task_run_status
 
             # Check if we got any results
-            if not table or len(table) == 0:
+            if not task_run_status or len(task_run_status) == 0:
                 logger.info(f"Task {task_id} not found. Aborting...")
-                return response, table
+                return response, task_run_status
 
             # Validate status
-            status = table[0].get("STATE", "unknown")
+            status = task_run_status[0].get("STATE", "unknown")
             if status == "FAILED":
-                _error_msg = table[0].get("ERROR_MESSAGE", "")
-                logger.error(f"Task [{task_id}] failed with status [{status}] and error message: {_error_msg}")
-                return response, table
+                _error_msg = task_run_status[0].get("ERROR_MESSAGE", "")
+                raise dbt.exceptions.DbtRuntimeError(
+                    f"Task [{task_id}] failed with status "
+                    f"[{status}] and error message: {_error_msg}"
+                )
 
             elif status in ["SUCCESS", "MERGED", "unknown"]:
                 logger.info(f"Task [{task_id}] finished with status [{status}]")
-                return response, table
+                return response, task_run_status
 
             # Compute next delay
             poll_delay = min(MAX_POLL_DELAY, 2 ** _attempts)
             _attempts += 1
 
             # Notify end user
-            progress = table[0].get("PROGRESS", "unknown")
+            progress = task_run_status[0].get("PROGRESS", "unknown")
             logger.info(f"Task {task_id} progress [{progress}]. Waiting {poll_delay} seconds...")
 
             # Close connection before sleeping to avoid stale connections
