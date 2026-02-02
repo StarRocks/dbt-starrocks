@@ -197,7 +197,7 @@ class TestViewOnViewExists(BaseSimpleMaterializations):
             "view_without_replace.sql": view_without_replace_sql,
         }
 
-    def test_view_on_view_exists(self, project):
+    def test_base(self, project):
         results = run_dbt(["seed"])
         assert len(results) == 1
 
