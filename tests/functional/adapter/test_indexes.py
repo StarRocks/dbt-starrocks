@@ -1,6 +1,6 @@
 import pytest
 from dbt.tests.util import run_dbt
-
+import logging as log
 
 single_index_model = """
 {{ config(
@@ -80,5 +80,5 @@ class TestMultipleColumnsIndex:
         return {"multiple_columns_index.sql": multiple_columns_index_model}
 
     def test_multiple_columns_index(self, project):
-        with pytest.raises(Exception):
-            run_dbt(["run"], expect_pass=False)
+        results = run_dbt(["run"], expect_pass=False)
+        assert "index can only apply to a single column" in results.results[0].message
