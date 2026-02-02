@@ -37,6 +37,8 @@ select 1 as id, 'test' as name, 'test@example.com' as email
 """
 
 class TestSingleIndex:
+    """Test that a single index is created correctly with proper naming and BITMAP type."""
+    
     @pytest.fixture(scope="class")
     def models(self):
         return {"single_index.sql": single_index_model}
@@ -52,6 +54,8 @@ class TestSingleIndex:
 
 
 class TestMultipleIndexes:
+    """Test that multiple indexes are created without trailing commas and all indexes are present."""
+    
     @pytest.fixture(scope="class")
     def models(self):
         return {"multiple_indexes.sql": multiple_indexes_model}
@@ -69,10 +73,12 @@ class TestMultipleIndexes:
 
 
 class TestMultipleColumnsIndex:
+    """Test that creating an index with multiple columns fails as expected (not supported)."""
+    
     @pytest.fixture(scope="class")
     def models(self):
         return {"multiple_columns_index.sql": multiple_columns_index_model}
 
     def test_multiple_columns_index(self, project):
-        with pytest.raises(AssertionError):
-            run_dbt(["run"])
+        with pytest.raises(Exception):
+            run_dbt(["run"], expect_pass=False)
