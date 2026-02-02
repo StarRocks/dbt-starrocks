@@ -102,6 +102,7 @@ models:
   partition_type: 'RANGE'               // RANGE or LIST or Expr Need to be used in combination with partition_by configuration
   properties: {"replication_num":"1", "in_memory": "true"}
   refresh_method: 'async'               // only for materialized view default manual
+  on_view_exists: 'replace'             // only for view: use CREATE OR REPLACE VIEW instead of DROP + CREATE
   
   // For 'materialized=incremental' in version >= 3.4
   incremental_strategy: 'dynamic_overwrite' // Supported values: ['default', 'insert_overwrite', 'dynamic_overwrite']
@@ -118,6 +119,7 @@ models:
 #### Example configuration:
 ```
 {{ config(materialized='view') }}
+{{ config(materialized='view', on_view_exists='replace') }}
 {{ config(materialized='table', engine='OLAP', buckets=32, distributed_by=['id']) }}
 {{ config(materialized='table', indexs=[{ 'columns': 'idx_column' }]) }}
 {{ config(materialized='table', partition_by=['date_trunc("day", first_order)'], partition_type='Expr') }}
