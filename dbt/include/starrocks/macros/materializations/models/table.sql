@@ -23,13 +23,12 @@
   {{ sql_header if sql_header is not none }}
 
   create table {{ relation.include(database=False) }}
-  {%- if indexs is not none -%}
-    {%- for index in indexs -%}
-      {%- set columns = index.get('columns') -%}
-      (
-        INDEX idx_{{ columns | replace(" ", "") | replace(",", "_") }} ({{ columns }}) USING BITMAP
-      )
-    {%- endfor -%}
+  {%- if indexs is not none %} (
+    {%- for index in indexs %}
+      {%- set columns = index.get('columns') %}
+    INDEX idx_{{ columns | replace(" ", "") | replace(",", "_") }} ({{ columns }}) USING BITMAP{{ "," if not loop.last }}
+    {%- endfor %}
+  )
   {%- endif -%}
 
   {%- if is_external -%}
