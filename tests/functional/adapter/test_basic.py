@@ -166,3 +166,55 @@ class TestSnapshotTimestampMyAdapter(BaseSnapshotTimestamp):
 
 class TestBaseAdapterMethod(BaseAdapterMethod):
     pass
+
+
+view_with_replace_sql = """
+{{ 
+    config(
+        materialized = 'view',
+        on_view_exists = 'replace'
+    ) 
+}}
+select * from {{ ref('base') }}
+""".lstrip()
+
+view_without_replace_sql = """
+{{ 
+    config(
+        materialized = 'view'
+    ) 
+}}
+select * from {{ ref('base') }}
+""".lstrip()
+
+
+class TestViewOnViewExists(BaseSimpleMaterializations):
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "view_with_replace.sql": view_with_replace_sql,
+            "view_without_replace.sql": view_without_replace_sql,
+        }
+
+    def test_base(self, project):
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        results = run_dbt(["run"])
+        assert len(results) == 2
+        check_result_nodes_by_name(results, ["view_with_replace", "view_without_replace"])
+
+        expected = {
+            "base": "table",
+            "view_with_replace": "view",
+            "view_without_replace": "view",
+        }
+        check_relation_types(project.adapter, expected)
+
+        check_relations_equal(project.adapter, ["base", "view_with_replace", "view_without_replace"])
+
+        # re-run to verify views can be updated
+        results = run_dbt(["run"])
+        assert len(results) == 2
+        check_relations_equal(project.adapter, ["base", "view_with_replace", "view_without_replace"])
