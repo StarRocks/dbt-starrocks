@@ -100,7 +100,7 @@ class StarRocksAdapter(SQLAdapter):
 
     def _cancel_task(self, task_id: str) -> None:
         """
-        Attempts to cancel a running task.
+        Cancel a running task.
 
         :param task_id: The task ID to cancel.
         """
