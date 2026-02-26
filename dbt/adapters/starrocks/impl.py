@@ -106,7 +106,6 @@ class StarRocksAdapter(SQLAdapter):
         """
         try:
             _cancel_sql = f"DROP TASK `{task_id}`"
-            logger.warning(f"Dropping task [{task_id}]...")
             super().execute(sql=_cancel_sql, fetch=False)
         except Exception as e:
             logger.warning(f"Failed to cancel task [{task_id}]: {e}")
