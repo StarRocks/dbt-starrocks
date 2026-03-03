@@ -35,10 +35,6 @@
     {%- set keys = unique_key if unique_key is sequence and unique_key is not mapping and unique_key is not string else [unique_key] -%}
   {%- endif -%}
 
-  {%- if properties is none -%}
-        {%- set properties = config.get('properties', {"replication_num":"1"}) -%}
-  {%- endif -%}
-
   {# 1. SET ENGINE #}
   {%- if is_create_table %} ENGINE = OLAP {% endif -%}
 
@@ -78,9 +74,9 @@
   {% endif -%}
 
   {# 3. SET PARTITION #}
-  {%- if partition_by is not none -%}
+  {% if partition_by is not none -%}
     {{ starrocks__partition_by(partition_type, partition_by, partition_by_init) }}
-  {%- endif -%}
+  {%- endif %}
 
   {# 4. SET DISTRIBUTED #}
   {%- if distributed_by is not none %}
@@ -88,7 +84,7 @@
       {%- for item in distributed_by -%}
         {{ item }} {%- if not loop.last -%}, {%- endif -%}
       {%- endfor -%}
-    ) 
+    )
     {%- if buckets is not none -%}
       BUCKETS {{ buckets }}
     {%- elif adapter.is_before_version("2.5.7") -%}
@@ -105,16 +101,16 @@
   {% endif -%}
 
   {# 5. SET ORDER BY #}
-  {%- if order_by is not none %}
+  {% if order_by is not none %}
     ORDER BY (
       {%- for item in order_by -%}
         {{ item }} {%- if not loop.last -%}, {%- endif -%}
       {%- endfor -%}
     )
-  {% endif -%}
+  {% endif %}
 
   {# 6. SET PROPERTIES #}
-  {%- if properties is not none %}
+  {% if properties is not none %}
     PROPERTIES (
       {% for key, value in properties.items() -%}
         "{{ key }}" = "{{ value }}"
@@ -122,7 +118,7 @@
         {% endif -%}
       {%- endfor %}
     )
-  {% endif -%}
+  {% endif %}
 {%- endmacro %}
 
 {% macro starrocks__other_table() -%}
