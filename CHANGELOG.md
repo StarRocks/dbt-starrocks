@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `on_view_exists='replace'` option for view materialization (#95)
+
 ### Changed
 - Remove repication_num=1 by default (#100)
 
