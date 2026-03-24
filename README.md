@@ -9,7 +9,7 @@ This project is **under development**.
 
 The `dbt-starrocks` package contains all the code to enable [dbt](https://getdbt.com) to work with [StarRocks](https://www.starrocks.io).
 
-- Requires StarRocks version 2.5.0 or higher  
+- Requires StarRocks version 2.5.0 or higher
   - version 3.4.x is recommended
   - StarRocks versions 2.4 and below are no longer supported
 
@@ -44,7 +44,7 @@ $ pip install dbt-starrocks
 1. When StarRocks Version < 2.5, `Create table as` can only set engine='OLAP' and table_type='DUPLICATE'
 2. When StarRocks Version >= 2.5, `Create table as` supports table_type='PRIMARY'
 3. When StarRocks Version < 3.1 distributed_by is required
-4. Verify the specific `submit task` support for your version, see [SUBMIT TASK](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/ETL/SUBMIT_TASK/). 
+4. Verify the specific `submit task` support for your version, see [SUBMIT TASK](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/ETL/SUBMIT_TASK/).
 
 ## Profile Configuration
 
@@ -93,7 +93,7 @@ models:
   table_type: 'PRIMARY'                 // PRIMARY or DUPLICATE or UNIQUE
   distributed_by: ['id']
   buckets: 3                            // leave empty for auto bucketing
-  indexs=[{ 'columns': 'idx_column' }]  
+  indexs=[{ 'columns': 'idx_column' }]
   partition_by: ['some_date']
   partition_by_init: ["PARTITION p1 VALUES [('1971-01-01 00:00:00'), ('1991-01-01 00:00:00')),PARTITION p1972 VALUES [('1991-01-01 00:00:00'), ('1999-01-01 00:00:00'))"]
   // RANGE, LIST, or Expr partition types should be used in conjunction with partition_by configuration
@@ -102,7 +102,7 @@ models:
   partition_type: 'RANGE'               // RANGE or LIST or Expr Need to be used in combination with partition_by configuration
   properties: {"replication_num":"1", "in_memory": "true"}
   refresh_method: 'async'               // only for materialized view default manual
-  
+
   // For 'materialized=incremental' in version >= 3.4
   incremental_strategy: 'dynamic_overwrite' // Supported values: ['default', 'insert_overwrite', 'dynamic_overwrite']
 
@@ -113,7 +113,7 @@ models:
   batch_size: 'day'                       // The batch size. Supported values ['year', 'month', 'day', 'hour']
   microbatch_use_dynamic_overwrite: true  // Whether to use dynamic_overwrite in version >= 3.4
 ```
-  
+
 ### dbt run config:
 #### Example configuration:
 ```
@@ -151,7 +151,7 @@ sources:
     tables:
       - name: hive_table_name
 ```
-Finally, you might use below marco quote 
+Finally, you might use below marco quote
 ```
 {{ source('external_example', 'hive_table_name') }}
 ```
@@ -182,7 +182,7 @@ The following statements will be submitted automatically:
 
 ### Task Polling
 
-Once the task has been submitted, the adapter will periodically poll StarRocks' `information_schema.task_runs` to retrieve the task status. 
+Once the task has been submitted, the adapter will periodically poll StarRocks' `information_schema.task_runs` to retrieve the task status.
 
 The polling is implemented using an exponential backoff, with a maximum delay of 10 minutes. The adapter's connection to the StarRocks' cluster will not be maintained during the waiting period. It will be re-opened right before the next status polling phase.
 
@@ -214,6 +214,11 @@ my_profile:
 ```
 
 ## Test Adapter
+Prepare env: install dev requirements and run StarRocks docker image
+```
+pip install -r dev_requirements.txt
+docker run -p 9030:9030 starrocks/allin1-ubuntu:3.5-latest
+```
 Run the following
 ```
 python3 -m pytest tests/functional
