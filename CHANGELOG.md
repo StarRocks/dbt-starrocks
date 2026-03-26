@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Task graceful shutdown (#98)
 - `on_view_exists='replace'` option for view materialization (#95)
 
 ### Changed

@@ -63,6 +63,8 @@ class StarRocksAdapter(SQLAdapter):
     Relation = StarRocksRelation
     AdapterSpecificConfigs = StarRocksConfig
     Column = StarRocksColumn
+    
+    _running_tasks: Dict[str, str] = {}
 
     @staticmethod
     def _is_submittable_etl(sql: str) -> bool:
@@ -95,6 +97,18 @@ class StarRocksAdapter(SQLAdapter):
         ]
 
         return any(re.search(pattern, sql_clean) for pattern in suitable_etl_patterns)
+
+    def _cancel_task(self, task_id: str) -> None:
+        """
+        Cancel running task.
+
+        :param task_id: The task ID to cancel.
+        """
+        try:
+            _cancel_sql = f"DROP TASK `{task_id}`"
+            super().execute(sql=_cancel_sql, fetch=False)
+        except Exception as e:
+            logger.warning(f"Failed to cancel task [{task_id}]: {e}")
 
     def _poll_for_complete_task(self, task_id: str) -> SQLQueryResult:
         """
@@ -176,13 +190,21 @@ class StarRocksAdapter(SQLAdapter):
             sql=sql,
         )
 
-        super().execute(
-            sql=_submit_sql,
-            auto_begin=auto_begin,
-            fetch=fetch,
-            limit=limit
-        )
-        return self._poll_for_complete_task(_task_id)
+        _connection = self.connections.get_if_exists()
+        if _connection:
+            self._running_tasks[_connection.name] = _task_id
+
+        try:
+            super().execute(
+                sql=_submit_sql,
+                auto_begin=auto_begin,
+                fetch=fetch,
+                limit=limit
+            )
+            return self._poll_for_complete_task(_task_id)
+        finally:
+            if _connection and _connection.name in self._running_tasks:
+                del self._running_tasks[_connection.name]
 
     @override
     def execute(
@@ -212,6 +234,14 @@ class StarRocksAdapter(SQLAdapter):
         if not self.config.credentials.is_async or not self._is_submittable_etl(sql):
             return super().execute(sql=sql, auto_begin=auto_begin, fetch=fetch, limit=limit)
         return self._execute_async_task(sql=sql, auto_begin=auto_begin, fetch=fetch, limit=limit)
+
+    def cancel_open_connections(self):
+        """Cancel all running tasks when dbt is interrupted."""
+        logger.warning(f"Canceling {len(self._running_tasks)} running StarRocks tasks...")
+        for conn_name, task_id in list(self._running_tasks.items()):
+            logger.warning(f"Canceling task [{task_id}] on connection [{conn_name}]")
+            self._cancel_task(task_id)
+        return super().cancel_open_connections()
 
     @classmethod
     def date_function(cls) -> str:
