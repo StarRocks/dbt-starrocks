@@ -1,3 +1,7 @@
 pytest
 pytest-dotenv
-dbt-tests-adapter==1.6.10
+dbt-tests-adapter==1.11.0
+mysql-connector-python==9.6.0
+setuptools
+dbt-core==1.11.0
+dbt-adapters
