@@ -16,11 +16,21 @@
 
 {% macro starrocks__create_view_as(relation, sql) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
+  {%- set on_view_exists = config.get('on_view_exists', none) -%}
 
   {{ sql_header if sql_header is not none }}
-  create view {{ relation }} as {{ sql }};
+  
+  {%- if on_view_exists == 'replace' -%}
+    create or replace view {{ relation }} as {{ sql }};
+  {%- else -%}
+    create view {{ relation }} as {{ sql }};
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro starrocks__drop_view(relation) -%}
-  drop view if exists {{ relation.render() }}
+  {%- set on_view_exists = config.get('on_view_exists', none) -%}
+  {%- if on_view_exists == 'replace' -%}
+  {%- else -%}
+    drop view if exists {{ relation.render() }}
+  {%- endif -%}
 {%- endmacro %}
