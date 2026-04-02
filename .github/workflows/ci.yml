@@ -82,7 +82,7 @@ jobs:
           uv pip install -e .
 
       - name: Start Iceberg stack
-        run: docker compose -f docker-compose.iceberg.yml up --detach --wait --wait-timeout 400
+        run: docker compose -f .github/docker-compose.iceberg.yml up --detach --wait --wait-timeout 400
 
       - name: Create Iceberg catalog
         run: |
@@ -106,4 +106,4 @@ jobs:
 
       - name: Stop Iceberg stack
         if: always()
-        run: docker compose -f docker-compose.iceberg.yml down -v
+        run: docker compose -f .github/docker-compose.iceberg.yml down -v
