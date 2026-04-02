@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.10', '3.11', '3.12']
-        starrocks-version: ['3.5-latest', '4.0-latest', '4.1.0-rc01']
+        starrocks-version: ['3.5.6', '4.0-latest', '4.1.0-rc01']
 
     steps:
       - name: Checkout code
