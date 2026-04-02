@@ -10,10 +10,15 @@ on:
 jobs:
   integration-test:
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
+        starrocks-version: ['3.5-latest', '4.0-latest', '4.1-rc01']
+
     services:
       starrocks:
-        image: starrocks/allin1-ubuntu:3.5.6
+        image: starrocks/allin1-ubuntu:${{ matrix.starrocks-version }}
         ports:
           - 9030:9030
           - 8030:8030
@@ -24,22 +29,22 @@ jobs:
           --health-timeout 5s
           --health-retries 30
           --health-start-period 30s
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
       - name: Install Python
-        run: uv venv --python 3.11
-      
+        run: uv venv --python ${{ matrix.python-version }}
+
       - name: Install MySQL client
         run: |
           sudo apt-get update
           sudo apt-get install -y mysql-client=8.0*
-      
+
       - name: Install dependencies
         run: |
           source .venv/bin/activate
@@ -59,6 +64,11 @@ jobs:
 
   external-catalog-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12']
+        starrocks-version: ['3.5-latest', '4.0-latest', '4.1-rc01']
 
     steps:
       - name: Checkout code
@@ -68,7 +78,7 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Install Python
-        run: uv venv --python 3.11
+        run: uv venv --python ${{ matrix.python-version }}
 
       - name: Install MySQL client
         run: |
@@ -83,6 +93,8 @@ jobs:
 
       - name: Start Iceberg stack
         run: docker compose -f .github/docker-compose.iceberg.yml up --detach --wait --wait-timeout 400
+        env:
+          STARROCKS_VERSION: ${{ matrix.starrocks-version }}
 
       - name: Create Iceberg catalog
         run: |
