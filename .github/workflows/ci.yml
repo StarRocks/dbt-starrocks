@@ -97,8 +97,8 @@ jobs:
               'aws.s3.secret_key'='password',
               'aws.s3.endpoint'='http://minio:9000',
               'aws.s3.enable_path_style_access'='true'
-            );
-          mysql -h 127.0.0.1 -P 9030 -u root -e "ADMIN SET FRONTEND CONFIG ('default_replication_num' = '1');""
+            );"
+          mysql -h 127.0.0.1 -P 9030 -u root -e "ADMIN SET FRONTEND CONFIG ('default_replication_num' = '1');"
 
       - name: Run external catalog tests
         run: |
