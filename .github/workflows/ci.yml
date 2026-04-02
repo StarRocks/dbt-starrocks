@@ -13,61 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11', '3.12']
-        starrocks-version: ['3.5-latest', '4.0-latest', '4.1.0-rc01']
-
-    services:
-      starrocks:
-        image: starrocks/allin1-ubuntu:${{ matrix.starrocks-version }}
-        ports:
-          - 9030:9030
-          - 8030:8030
-          - 8040:8040
-        options: >-
-          --health-cmd "mysql -h127.0.0.1 -P9030 -uroot -e 'SELECT 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --health-start-period 30s
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Install Python
-        run: uv venv --python ${{ matrix.python-version }}
-
-      - name: Install MySQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mysql-client=8.0*
-
-      - name: Install dependencies
-        run: |
-          source .venv/bin/activate
-          uv pip install -r dev_requirements.txt
-          uv pip install -e .
-
-      - name: Run unit tests
-        run: |
-          source .venv/bin/activate
-          uv run pytest tests/unit
-
-      - name: Run integration tests
-        run: |
-          source .venv/bin/activate
-          sleep 30
-          uv run pytest tests/functional
-
-  external-catalog-test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12']
         starrocks-version: ['3.5-latest', '4.0-latest', '4.1.0-rc01']
 
     steps:
@@ -96,8 +42,9 @@ jobs:
         env:
           STARROCKS_VERSION: ${{ matrix.starrocks-version }}
 
-      - name: Create Iceberg catalog
+      - name: Configure StarRocks and create Iceberg catalog
         run: |
+          mysql -h 127.0.0.1 -P 9030 -u root -e "ADMIN SET FRONTEND CONFIG ('default_replication_num' = '1');"
           mysql -h 127.0.0.1 -P 9030 -u root -e "
             CREATE EXTERNAL CATALOG iceberg_catalog
             PROPERTIES (
@@ -110,12 +57,16 @@ jobs:
               'aws.s3.endpoint'='http://minio:9000',
               'aws.s3.enable_path_style_access'='true'
             );"
-          mysql -h 127.0.0.1 -P 9030 -u root -e "ADMIN SET FRONTEND CONFIG ('default_replication_num' = '1');"
 
-      - name: Run external catalog tests
+      - name: Run unit tests
         run: |
           source .venv/bin/activate
-          uv run pytest tests/functional --runexternal -m external
+          uv run pytest tests/unit
+
+      - name: Run integration tests
+        run: |
+          source .venv/bin/activate
+          uv run pytest tests/functional
 
       - name: Stop Iceberg stack
         if: always()

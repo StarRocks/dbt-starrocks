@@ -32,7 +32,6 @@ external_catalog_table_sql = """
 select * from {{ ref('base') }}
 """.lstrip()
 
-@pytest.mark.external
 class TestExternalCatalogTable:
     """Test basic table materialization in external catalog"""
 
