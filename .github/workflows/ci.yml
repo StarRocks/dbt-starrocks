@@ -74,3 +74,16 @@ jobs:
       - name: Stop Iceberg stack
         if: always()
         run: docker compose -f .github/docker-compose.iceberg.yml down -v
+
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [integration-test]
+    steps:
+      - name: Check matrix results
+        run: |
+          if [ "${{ needs.integration-test.result }}" != "success" ]; then
+            echo "Integration tests failed"
+            exit 1
+          fi
