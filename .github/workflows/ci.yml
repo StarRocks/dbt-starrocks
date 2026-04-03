@@ -63,6 +63,9 @@ jobs:
           source .venv/bin/activate
           uv run pytest tests/unit
 
+      - name: Wait for StarRocks internal tables
+        run: sleep 60
+
       - name: Run integration tests
         run: |
           source .venv/bin/activate
