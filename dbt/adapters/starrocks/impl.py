@@ -22,7 +22,8 @@ from typing_extensions import TypeAlias
 import agate
 import dbt.exceptions
 from dbt.adapters.base import available
-from dbt.adapters.base.impl import _expect_row_value, catch_as_completed
+from dbt.adapters.base.impl import _expect_row_value, catch_as_completed, ConstraintSupport
+from dbt_common.contracts.constraints import ConstraintType
 from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.events.logging import AdapterLogger
@@ -63,7 +64,28 @@ class StarRocksAdapter(SQLAdapter):
     Relation = StarRocksRelation
     AdapterSpecificConfigs = StarRocksConfig
     Column = StarRocksColumn
-    
+
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.not_null: ConstraintSupport.ENFORCED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.ENFORCED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
+    }
+
+    @classmethod
+    def render_column_constraint(cls, constraint):
+        # NOT NULL is supported as inline column DDL in StarRocks.
+        # primary_key/unique are expressed via table key type in starrocks__olap_table,
+        # not as inline column constraints, so they return None.
+        if constraint.type == ConstraintType.not_null:
+            return "NOT NULL"
+        return None
+
+    @classmethod
+    def render_model_constraint(cls, constraint):
+        return None
+
     _running_tasks: Dict[str, str] = {}
 
     @staticmethod
