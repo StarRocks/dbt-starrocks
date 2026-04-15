@@ -125,6 +125,9 @@
         {%- endcall -%}
 
         {%- do starrocks__exchange_relation(target_relation, backup_relation) -%}
+
+        {#-- Drop the backup table after successful exchange --#}
+        {%- do adapter.drop_relation(backup_relation) -%}
     {% else %}
         {#-- Create the temp relation, either as a view or as a temp table --#}
         {%- call statement('create_tmp_relation') -%}
