@@ -6,12 +6,12 @@ invalid_model_sql = """
 {{ config(
     materialized='table',
     table_type='DUPLICATE',
-    keys=['hk_col'],
-    distributed_by=['hk_col'],
+    keys=['json_col'],
+    distributed_by=['json_col'],
     engine='OLAP'
 ) }}
 select
-    cast(x'010121' as varbinary(16)) as hk_col
+    parse_json('{"key": "value"}') as json_col
 """.lstrip()
 
 valid_model_sql = """
