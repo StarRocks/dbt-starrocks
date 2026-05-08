@@ -31,12 +31,16 @@
     {%- elif from_relation.is_table and to_relation.is_table %}
        alter table {{ from_relation }} rename {{ to_relation.table }}
     {% elif from_relation.is_view and to_relation.is_view %}
-      {% set results = run_query("select VIEW_DEFINITION as sql from information_schema.views where TABLE_SCHEMA='"
-           + from_relation.schema + "' and TABLE_NAME='" + from_relation.table + "'") %}
-      create view {{ to_relation }} as {{ results[0]['sql'] }}
-      {% call statement('drop_view') %}
+      {% if to_relation.table.endswith('__dbt_backup') %}
         drop view if exists {{ from_relation }}
-      {% endcall %}
+      {% else %}
+        {% set results = run_query("select VIEW_DEFINITION as sql from information_schema.views where TABLE_SCHEMA='"
+             + from_relation.schema + "' and TABLE_NAME='" + from_relation.table + "'") %}
+        create view {{ to_relation }} as {{ results[0]['sql'] }}
+        {% call statement('drop_view') %}
+          drop view if exists {{ from_relation }}
+        {% endcall %}
+      {% endif %}
     {%- else -%}
       {%- set msg -%}
           unsupported rename from {{ from_relation.type }} to {{ to_relation.type }}
