@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from contextlib import contextmanager
 
 import mysql.connector
@@ -234,5 +235,38 @@ class StarRocksConnectionManager(SQLConnectionManager):
             code=code
         )
 
+    @staticmethod
+    def _is_ddl_statement(sql: str) -> bool:
+        """
+        Check if SQL is a DDL statement.
+
+        DDL statements (CREATE, DROP, ALTER, TRUNCATE) are not supported
+        in StarRocks explicit transactions.
+        """
+        sql_clean = sql.strip().lower()
+        sql_clean = re.sub(r'\s+', ' ', sql_clean)
+
+        ddl_patterns = [
+            r'^create\s+(table|view|database|schema|index|materialized\s+view)',
+            r'^drop\s+(table|view|database|schema|index|materialized\s+view)',
+            r'^alter\s+(table|view|database|schema)',
+            r'^truncate\s+table',
+        ]
+
+        return any(re.match(pattern, sql_clean) for pattern in ddl_patterns)
+
     def add_begin_query(self):
         return self.add_query("", auto_begin=False)
+
+    def add_commit_query(self):
+        """
+        Override to skip COMMIT for DDL statements.
+
+        StarRocks does not support DDL in explicit transactions.
+        Error 5305: Explicit transaction only support
+        begin/commit/rollback/insert/update/delete/set/select statements.
+        """
+        if getattr(self, '_is_ddl_context', False):
+            self._is_ddl_context = False
+            return self.add_query("", auto_begin=False)
+        return self.add_query("COMMIT", auto_begin=False)
