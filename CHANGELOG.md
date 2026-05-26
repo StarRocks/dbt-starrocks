@@ -10,13 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Task graceful shutdown (#98)
 - `on_view_exists='replace'` option for view materialization (#95)
+- View materialization skips DDL when the SQL is unchanged (StarRocks >= 4.0.6), keeping dependent materialized views active
 
 ### Changed
 - Remove repication_num=1 by default (#100)
 
 ### Fixed
 - `get_catalog` macro (#89)
--  Multiple indexes issue (#97)
+- Multiple indexes issue (#97)
+- `_parse_version` now parses multi-digit version parts correctly (e.g. `3.5.14`, `4.0.10`) instead of reading single characters
+- StarRocks server version is stored on the connection (`starrocks_version`) instead of the read-only `server_version` handle property, so `is_before_version`/`current_version` work on mysql-connector >= 8.x
 
 ## [1.11.0] - 2025-10-16
 

@@ -93,15 +93,16 @@ class StarRocksCredentials(Credentials):
 
 def _parse_version(result):
     default_version = (999, 999, 999)
-    first_part = None
+    first_part = result
 
     if '-' in result:
         first_part = result.split('-')[0]
     if ' ' in result:
         first_part = result.split(' ')[0]
 
-    if first_part and len(first_part.split('.')) == 3:
-        return int(first_part[0]), int(first_part[2]), int(first_part[4])
+    parts = first_part.split('.')
+    if len(parts) == 3 and all(part.isdigit() for part in parts):
+        return int(parts[0]), int(parts[1]), int(parts[2])
 
     return default_version
 
@@ -161,23 +162,28 @@ class StarRocksConnectionManager(SQLConnectionManager):
 
                 raise dbt_common.exceptions.ConnectionError(str(e))
 
+        # write to connection.starrocks_version because connection.handle.server_version 
+        # is read-only on mysql-connector >= 9.x
         if credentials.version is None:
             cursor = connection.handle.cursor()
             try:
                 cursor.execute("select current_version()")
-                connection.handle.server_version = _parse_version(
-                    cursor.fetchone()[0])
+                starrocks_version_str = cursor.fetchone()[0]
+                connection.starrocks_version = _parse_version(starrocks_version_str)
+                connection.starrocks_version_string = starrocks_version_str
             except Exception as e:
                 logger.debug(
                     "Got an error when obtain StarRocks version exception: '{}'".format(e))
         else:
             version = credentials.version.strip().split('.')
             if len(version) == 3:
-                connection.handle.server_version = (
+                connection.starrocks_version = (
                     int(version[0]), int(version[1]), int(version[2]))
+                connection.starrocks_version_string = credentials.version.strip()
             elif len(version) == 2:
-                connection.handle.server_version = (
+                connection.starrocks_version = (
                     int(version[0]), int(version[1]), 0)
+                connection.starrocks_version_string = credentials.version.strip()
             else:
                 logger.debug("Config version '{}' is invalid".format(version))
 
