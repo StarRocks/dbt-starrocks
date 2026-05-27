@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Task graceful shutdown (#98)
 - `on_view_exists='replace'` option for view materialization (#95)
-- View materialization skips DDL when the SQL is unchanged (StarRocks >= 4.0.6), keeping dependent materialized views active
+- View materialization skips recreating a view when its SQL is unchanged, keeping dependent materialized views active. Works on all StarRocks versions by building a temporary view, letting StarRocks canonicalize it, and comparing stored definitions (no SQL string-normalization required)
 
 ### Changed
 - Remove repication_num=1 by default (#100)

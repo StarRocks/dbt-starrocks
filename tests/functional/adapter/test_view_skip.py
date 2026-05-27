@@ -58,37 +58,17 @@ def _is_active(project, mv_name: str) -> str:
     return result[0]
 
 
-def _server_version(project) -> tuple:
-    """Return the running StarRocks version as a (major, minor, patch) tuple."""
-    raw = project.run_sql("select current_version()", fetch="one")[0]
-    first = raw.split('-')[0].split(' ')[0]
-    parts = first.split('.')
-    if len(parts) == 3 and all(p.isdigit() for p in parts):
-        return tuple(int(p) for p in parts)
-    return (999, 999, 999)
-
-
-def _skip_if_before(project, version: tuple, reason: str) -> None:
-    """Skip the current test when the server is older than `version`.
-
-    Verbatim view definition storage — which the skip comparison depends on —
-    only exists from 4.0.6 (views, #68040). Below that StarRocks canonicalizes
-    the stored SQL, so the skip optimization is intentionally disabled and these
-    assertions don't hold.
-    """
-    if _server_version(project) < version:
-        pytest.skip(reason)
-
-
 class TestViewSkipWhenUnchanged:
     """
     Tests the StarRocks view materialization's skip-when-unchanged behavior.
 
-    On >= 4.0.6 StarRocks stores the original view SQL verbatim, so the
-    materialization compares the stored definition against the compiled SQL and
-    issues no DDL when they match. Because StarRocks deactivates dependent MVs
-    whenever a base view is recreated, skipping the unchanged view keeps those
-    MVs active.
+    The materialization builds the candidate under a temporary name, lets the
+    server canonicalize it, and compares its stored definition against the
+    existing view's. Because both strings come from the same engine, this works
+    on every StarRocks version (verbatim on >= 4.0.6, re-qualified on 3.5) and
+    issues no DDL on the target when they match. Because StarRocks deactivates
+    dependent MVs whenever a base view is recreated, skipping the unchanged view
+    keeps those MVs active.
 
     Setup: my_seed -> my_view (view) -> my_mv_on_view (materialized_view).
     """
@@ -124,9 +104,6 @@ class TestViewSkipWhenUnchanged:
 
     def test_unchanged_view_is_skipped(self, project, my_view):
         """An unchanged view must issue no DDL — logged as 'skip <relation>'."""
-        _skip_if_before(project, (4, 0, 6),
-                        "view skip requires verbatim view storage (>= 4.0.6)")
-
         _, logs = run_dbt_and_capture(["--debug", "run", "--select", "my_view"])
 
         assert f"skip {my_view}" in logs, (
@@ -139,9 +116,6 @@ class TestViewSkipWhenUnchanged:
         Because the MV model is not run here, the MV staying active proves the
         view issued no DDL.
         """
-        _skip_if_before(project, (4, 0, 6),
-                        "view skip requires verbatim view storage (>= 4.0.6)")
-
         run_dbt(["run", "--select", "my_view"])
 
         assert _is_active(project, "my_mv_on_view") == "true", (
@@ -153,9 +127,6 @@ class TestViewSkipWhenUnchanged:
         A genuine SQL change must rebuild the view (not skip it). Rebuilding the
         view deactivates the dependent MV — confirming the skip path was not taken.
         """
-        _skip_if_before(project, (4, 0, 6),
-                        "view skip requires verbatim view storage (>= 4.0.6)")
-
         set_model_file(project, my_view, MY_VIEW_SQL_CHANGED)
 
         # Rebuild just the view: the SQL changed, so it must not be skipped.
@@ -168,7 +139,9 @@ class TestViewSkipWhenUnchanged:
             f" where table_schema = '{project.test_schema}' and table_name = 'my_view'",
             fetch="one",
         )[0]
-        assert "id >= 1" in stored, "rebuilt view should reflect the new SQL"
+        # Version-agnostic: 3.5 stores the predicate backtick-qualified
+        # (`my_seed`.`id` >= 1), 4.0.6+ stores it verbatim (id >= 1).
+        assert ">= 1" in stored, "rebuilt view should reflect the new SQL predicate"
 
         # Rebuilding the base view deactivates the dependent MV.
         assert _is_active(project, "my_mv_on_view") == "false", (

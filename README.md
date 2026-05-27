@@ -45,7 +45,7 @@ $ pip install dbt-starrocks
 2. When StarRocks Version >= 2.5, `Create table as` supports table_type='PRIMARY'
 3. When StarRocks Version < 3.1 distributed_by is required
 4. Verify the specific `submit task` support for your version, see [SUBMIT TASK](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/ETL/SUBMIT_TASK/).
-5. **Views (StarRocks >= 4.0.6):** when a view's SQL is unchanged, `dbt run` issues no DDL and reports `skip`. This avoids deactivating dependent materialized views, which StarRocks does whenever a base view is recreated, even with identical SQL. Verbatim view storage was added in 4.0.6 ([StarRocks/starrocks#68040](https://github.com/StarRocks/starrocks/pull/68040)); below 4.0.6 the view is recreated every run (unchanged behavior).
+5. **Views:** when a view's SQL is unchanged, `dbt run` issues no DDL on the view and reports `skip`. This avoids deactivating dependent materialized views, which StarRocks does whenever a base view is recreated, even with identical SQL.
 
 ## Profile Configuration
 
