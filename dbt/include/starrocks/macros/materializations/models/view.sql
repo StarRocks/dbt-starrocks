@@ -35,10 +35,7 @@
   {%- endif -%}
 {%- endmacro %}
 
-{# Return the engine-stored definition for a view, or none if it is absent.
-   StarRocks canonicalizes this string the same way for any view with the same
-   body, regardless of the view's own name, so two definitions produced by the
-   same server compare exactly. #}
+{# Return the engine-stored definition for a view, or none if it is absent. #}
 {% macro starrocks__stored_view_definition(relation) -%}
   {%- set query -%}
     select view_definition as view_def
@@ -71,7 +68,14 @@
   {%- endif -%}
 
   {%- if existing_relation is none -%}
-    {# Brand new view. #}
+    {%- call statement('main') -%}
+      {{ starrocks__create_view_as(target_relation, sql) }}
+    {%- endcall -%}
+
+  {%- elif should_full_refresh() -%}
+    {%- if on_view_exists != 'replace' -%}
+      {{ adapter.drop_relation(existing_relation) }}
+    {%- endif -%}
     {%- call statement('main') -%}
       {{ starrocks__create_view_as(target_relation, sql) }}
     {%- endcall -%}
@@ -80,12 +84,7 @@
     {#
       Skip-when-unchanged, on every StarRocks version. Build the candidate under
       a temporary name and let the server canonicalize it, then compare its
-      stored definition against the existing view's. Because both strings are
-      produced by the same engine, the comparison is exact with no SQL
-      normalization -- verbatim on >= 4.0.6, re-qualified/upper-cased on 3.5.
-      Recreating a view deactivates dependent materialized views, so skipping an
-      unchanged view keeps those MVs active. Creating/dropping the temporary
-      view does not touch the target name, so it leaves dependent MVs alone.
+      stored definition against the existing view.
     #}
     {%- set intermediate_relation = make_intermediate_relation(target_relation) -%}
     {%- set backup_relation = make_backup_relation(target_relation, 'view') -%}

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Task graceful shutdown (#98)
 - `on_view_exists='replace'` option for view materialization (#95)
-- View materialization skips recreating a view when its SQL is unchanged, keeping dependent materialized views active. Works on all StarRocks versions by building a temporary view, letting StarRocks canonicalize it, and comparing stored definitions (no SQL string-normalization required)
+- View materialization skips recreating a view when its SQL is unchanged, keeping dependent materialized views active (#109)
 
 ### Changed
 - Remove repication_num=1 by default (#100)
@@ -18,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `get_catalog` macro (#89)
 - Multiple indexes issue (#97)
-- `_parse_version` now parses multi-digit version parts correctly (e.g. `3.5.14`, `4.0.10`) instead of reading single characters
-- StarRocks server version is stored on the connection (`starrocks_version`) instead of the read-only `server_version` handle property, so `is_before_version`/`current_version` work on mysql-connector >= 8.x
+- `_parse_version` now parses multi-digit version parts correctly (e.g. `3.5.14`, `4.0.10`) instead of reading single characters (#109)
+- StarRocks server version is stored on the connection (`starrocks_version`) instead of the read-only `server_version` handle property, so `is_before_version`/`current_version` work on mysql-connector >= 8.x (#109)
 - View rename to `__dbt_backup` fails during `--full-refresh` when upstream view columns changed
 
 ## [1.11.0] - 2025-10-16

@@ -147,3 +147,19 @@ class TestViewSkipWhenUnchanged:
         assert _is_active(project, "my_mv_on_view") == "false", (
             "rebuilding the base view should deactivate the dependent MV"
         )
+
+    def test_full_refresh_rebuilds_unchanged_view(self, project, my_view):
+        """
+        `--full-refresh` must rebuild even an unchanged view (the usual escape
+        hatch), so the skip optimization is bypassed and the dependent MV is
+        deactivated — matching the table/incremental materializations.
+        """
+        _, logs = run_dbt_and_capture(
+            ["--debug", "run", "--full-refresh", "--select", "my_view"]
+        )
+        assert f"skip {my_view}" not in logs, (
+            "--full-refresh must force a rebuild, not skip"
+        )
+        assert _is_active(project, "my_mv_on_view") == "false", (
+            "a forced rebuild should deactivate the dependent MV"
+        )
