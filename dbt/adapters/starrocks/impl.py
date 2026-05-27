@@ -339,8 +339,9 @@ class StarRocksAdapter(SQLAdapter):
     @available
     def is_before_version(self, version: str) -> bool:
         conn = self.connections.get_if_exists()
-        if conn and hasattr(conn, 'starrocks_version'):
-            server_version_tuple = tuple(conn.starrocks_version)
+        if conn:
+            server_version = conn.handle.server_version
+            server_version_tuple = tuple(server_version)
             version_detail_tuple = tuple(
                 int(part) for part in version.split(".") if part.isdigit())
             if version_detail_tuple > server_version_tuple:
@@ -350,8 +351,8 @@ class StarRocksAdapter(SQLAdapter):
     @available
     def current_version(self):
         conn = self.connections.get_if_exists()
-        if conn and hasattr(conn, 'starrocks_version'):
-            server_version = conn.starrocks_version
+        if conn:
+            server_version = conn.handle.server_version
             if server_version != (999, 999, 999):
                 return "{}.{}.{}".format(server_version[0], server_version[1], server_version[2])
         return 'UNKNOWN'
