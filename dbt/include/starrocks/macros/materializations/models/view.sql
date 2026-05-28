@@ -27,14 +27,6 @@
   {%- endif -%}
 {%- endmacro %}
 
-{% macro starrocks__drop_view(relation) -%}
-  {%- set on_view_exists = config.get('on_view_exists', none) -%}
-  {%- if on_view_exists == 'replace' -%}
-  {%- else -%}
-    drop view if exists {{ relation.render() }}
-  {%- endif -%}
-{%- endmacro %}
-
 {# Return the engine-stored definition for a view, or none if it is absent. #}
 {% macro starrocks__stored_view_definition(relation) -%}
   {%- set query -%}
