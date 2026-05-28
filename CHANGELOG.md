@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `get_catalog` macro (#89)
 - Multiple indexes issue (#97)
 - View rename to `__dbt_backup` fails during `--full-refresh` when upstream view columns changed
+- Implement StarRocks DBAPI type-code conversion for dbt query schema inference
 
 ## [1.11.0] - 2025-10-16
 

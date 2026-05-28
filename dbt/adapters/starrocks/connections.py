@@ -16,6 +16,7 @@
 from contextlib import contextmanager
 
 import mysql.connector
+from mysql.connector.constants import FieldType
 
 import dbt.exceptions
 import dbt_common.exceptions
@@ -28,7 +29,7 @@ from dbt.adapters.contracts.connection import (
 )
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.adapters.events.logging import AdapterLogger
-from typing import Optional
+from typing import Optional, Union
 
 logger = AdapterLogger("starrocks")
 
@@ -108,6 +109,44 @@ def _parse_version(result):
 
 class StarRocksConnectionManager(SQLConnectionManager):
     TYPE = 'starrocks'
+    TYPE_CODE_TO_NAME = {
+        FieldType.DECIMAL: "decimal",
+        FieldType.NEWDECIMAL: "decimal",
+        FieldType.TINY: "tinyint",
+        FieldType.SHORT: "smallint",
+        FieldType.LONG: "int",
+        FieldType.INT24: "int",
+        FieldType.LONGLONG: "bigint",
+        FieldType.FLOAT: "float",
+        FieldType.DOUBLE: "double",
+        FieldType.DATE: "date",
+        FieldType.DATETIME: "datetime",
+        FieldType.TIMESTAMP: "datetime",
+        FieldType.TIME: "varchar",
+        FieldType.YEAR: "smallint",
+        FieldType.VARCHAR: "varchar",
+        FieldType.VAR_STRING: "varchar",
+        FieldType.STRING: "varchar",
+        FieldType.BLOB: "varbinary",
+        FieldType.BIT: "tinyint",
+        FieldType.JSON: "json",
+    }
+
+    @classmethod
+    def data_type_code_to_name(cls, type_code: Union[int, str]) -> str:
+        if isinstance(type_code, str):
+            return type_code.lower()
+
+        data_type = cls.TYPE_CODE_TO_NAME.get(type_code)
+        if data_type:
+            return data_type
+
+        mysql_type_name = FieldType.get_info(type_code)
+        if mysql_type_name:
+            return mysql_type_name.lower()
+
+        logger.warning("Unknown StarRocks data type code: %s", type_code)
+        return str(type_code)
 
     @classmethod
     def open(cls, connection):
