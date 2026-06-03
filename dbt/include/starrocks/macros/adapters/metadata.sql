@@ -107,3 +107,31 @@
   
   ALTER TABLE {{ relation.include(database=False) }} SET COMMENT = {{ comment_escaped }};
 {% endmacro %}
+
+{% macro starrocks__alter_column_comment(relation, column_name, column_comment) %}
+  {# 
+    StarRocks uses MODIFY COLUMN to alter a column's metadata/comment.
+    Note: In some versions of StarRocks, MODIFY COLUMN requires the data type. 
+    To bypass needing the exact data type, we use ALTER TABLE ... ALTER COLUMN.
+  #}
+  {% set comment_escaped = dbt.string_literal(column_comment) %}
+  
+  ALTER TABLE {{ relation.include(database=False) }} ALTER COLUMN {{ adapter.quote(column_name) }} COMMENT {{ comment_escaped }};
+{% endmacro %}
+
+
+{% macro starrocks__persist_from_relations(relation, model) %}
+  {#
+    This macro hooks into dbt's post-materialization phase to loop through 
+    configured columns and fire off the column comment updates.
+  #}
+  {% if config.get('persist_docs', {}).get('columns', false) and model.columns %}
+    {% for col in model.columns.values() %}
+      {% if col.description %}
+        {% call statement('alter_column_comment') %}
+          {{ starrocks__alter_column_comment(relation, col.name, col.description) }}
+        {% endcall %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endmacro %}
