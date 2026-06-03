@@ -99,39 +99,36 @@
 {%- endmacro %}
 
 {% macro starrocks__alter_relation_comment(relation, relation_comment) %}
-  {#
-    StarRocks uses ALTER TABLE ... SET COMMENT ... syntax to update 
-    an existing table or view's description.
-  #}
-  {% set comment_escaped = dbt.string_literal(relation_comment) %}
-  
-  ALTER TABLE {{ relation.include(database=False) }} SET COMMENT = {{ comment_escaped }};
+  {% if relation.type == 'table' %}
+    {% call statement('alter_relation_comment') %}
+      ALTER TABLE {{ relation.include(database=False) }} COMMENT = {{ dbt.string_literal(relation_comment) }};
+    {% endcall %}
+  {% endif %}
 {% endmacro %}
 
+
 {% macro starrocks__alter_column_comment(relation, column_name, column_comment) %}
-  {# 
-    StarRocks uses MODIFY COLUMN to alter a column's metadata/comment.
-    Note: In some versions of StarRocks, MODIFY COLUMN requires the data type. 
-    To bypass needing the exact data type, we use ALTER TABLE ... ALTER COLUMN.
-  #}
-  {% set comment_escaped = dbt.string_literal(column_comment) %}
-  
-  ALTER TABLE {{ relation.include(database=False) }} ALTER COLUMN {{ adapter.quote(column_name) }} COMMENT {{ comment_escaped }};
+  {% if relation.type == 'table' %}
+    {% call statement('alter_column_comment') %}
+      ALTER TABLE {{ relation.include(database=False) }} MODIFY COLUMN {{ adapter.quote(column_name) }} COMMENT {{ dbt.string_literal(column_comment) }};
+    {% endcall %}
+  {% endif %}
 {% endmacro %}
 
 
 {% macro starrocks__persist_from_relations(relation, model) %}
-  {#
-    This macro hooks into dbt's post-materialization phase to loop through 
-    configured columns and fire off the column comment updates.
-  #}
-  {% if config.get('persist_docs', {}).get('columns', false) and model.columns %}
-    {% for col in model.columns.values() %}
-      {% if col.description %}
-        {% call statement('alter_column_comment') %}
+  {% if model.config.materialized == 'table' or model.config.materialized == 'incremental' %}
+
+    {% if config.get('persist_docs', {}).get('relation', false) and model.description %}
+      {{ starrocks__alter_relation_comment(relation, model.description) }}
+    {% endif %}
+
+    {% if config.get('persist_docs', {}).get('columns', false) and model.columns %}
+      {% for col in model.columns.values() %}
+        {% if col.description %}
           {{ starrocks__alter_column_comment(relation, col.name, col.description) }}
-        {% endcall %}
-      {% endif %}
-    {% endfor %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
   {% endif %}
 {% endmacro %}
