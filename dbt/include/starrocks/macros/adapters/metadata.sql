@@ -97,3 +97,13 @@
     {%- endcall %}
     {{ return(load_result('list_schemas').table) }}
 {%- endmacro %}
+
+{% macro starrocks__alter_relation_comment(relation, relation_comment) %}
+  {#
+    StarRocks uses ALTER TABLE ... SET COMMENT ... syntax to update 
+    an existing table or view's description.
+  #}
+  {% set comment_escaped = dbt.string_literal(relation_comment) %}
+  
+  ALTER TABLE {{ relation.include(database=False) }} SET COMMENT = {{ comment_escaped }};
+{% endmacro %}
