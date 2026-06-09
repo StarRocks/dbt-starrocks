@@ -20,6 +20,12 @@
   {%- set indexs = config.get('indexs') -%}
   {%- set properties = config.get('properties') -%}
 
+  {#- Check if persist_docs is enabled for the relation and retrieve the description -#}
+  {%- set relation_comment = none -%}
+  {%- if config.get('persist_docs', {}).get('relation', false) -%}
+    {%- set relation_comment = model.description -%}
+  {%- endif -%}
+
   {{ sql_header if sql_header is not none }}
 
   create table {{ relation.include(database=False) }}
@@ -41,6 +47,10 @@
     {%- endset %}
     {{ exceptions.raise_compiler_error(msg) }}
   {%- endif -%}
+  
+  {%- if relation_comment is not none %}
+  COMMENT {{ dbt.string_literal(relation_comment) }}
+  {%- endif %}
 
   as {{ sql }}
 

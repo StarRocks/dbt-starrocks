@@ -86,5 +86,8 @@
   
   {{ run_hooks(post_hooks) }}
   
+  {# Apply column comments if configured #}
+  {% do starrocks__persist_from_relations(target_relation, model) %}
+
   {{ return({'relations': [target_relation]}) }}
 {% endmaterialization %}

@@ -97,3 +97,38 @@
     {%- endcall %}
     {{ return(load_result('list_schemas').table) }}
 {%- endmacro %}
+
+{% macro starrocks__alter_relation_comment(relation, relation_comment) %}
+  {% if relation.type == 'table' %}
+    {% call statement('alter_relation_comment') %}
+      ALTER TABLE {{ relation.include(database=False) }} COMMENT = {{ dbt.string_literal(relation_comment) }};
+    {% endcall %}
+  {% endif %}
+{% endmacro %}
+
+
+{% macro starrocks__alter_column_comment(relation, column_name, column_comment) %}
+  {% if relation.type == 'table' %}
+    {% call statement('alter_column_comment') %}
+      ALTER TABLE {{ relation.include(database=False) }} MODIFY COLUMN {{ adapter.quote(column_name) }} COMMENT {{ dbt.string_literal(column_comment) }};
+    {% endcall %}
+  {% endif %}
+{% endmacro %}
+
+
+{% macro starrocks__persist_from_relations(relation, model) %}
+  {% if model.config.materialized == 'table' or model.config.materialized == 'incremental' %}
+
+    {% if config.get('persist_docs', {}).get('relation', false) and model.description %}
+      {{ starrocks__alter_relation_comment(relation, model.description) }}
+    {% endif %}
+
+    {% if config.get('persist_docs', {}).get('columns', false) and model.columns %}
+      {% for col in model.columns.values() %}
+        {% if col.description %}
+          {{ starrocks__alter_column_comment(relation, col.name, col.description) }}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endif %}
+{% endmacro %}

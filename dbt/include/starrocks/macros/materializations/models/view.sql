@@ -20,11 +20,22 @@
 
   {{ sql_header if sql_header is not none }}
   
-  {%- if on_view_exists == 'replace' -%}
-    create or replace view {{ relation }} as {{ sql }};
-  {%- else -%}
-    create view {{ relation }} as {{ sql }};
-  {%- endif -%}
+  create or replace view {{ relation }}
+
+  {%- if config.get('persist_docs', {}).get('columns', false) and model.columns -%}
+    (
+    {%- for col in model.columns.values() %}
+      {{ adapter.quote(col.name) }} {% if col.description -%} COMMENT {{ dbt.string_literal(col.description) }} {%- endif -%}
+      {{ "," if not loop.last }}
+    {%- endfor %}
+    )
+  {%- endif %}
+
+  {%- if config.get('persist_docs', {}).get('relation', false) and model.description -%}
+    COMMENT {{ dbt.string_literal(model.description) }}
+  {%- endif %}
+
+  as {{ sql }};
 {%- endmacro %}
 
 {% macro starrocks__drop_view(relation) -%}
@@ -34,3 +45,4 @@
     drop view if exists {{ relation.render() }}
   {%- endif -%}
 {%- endmacro %}
+
