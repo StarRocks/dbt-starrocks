@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiple indexes issue (#97)
 - View rename to `__dbt_backup` fails during `--full-refresh` when upstream view columns changed
 - Implement StarRocks DBAPI type-code conversion for dbt query schema inference
+- `dbt seed` fails on CSV columns with decimal values because the inherited `convert_number_type` returns the Postgres-flavoured `float8` type
 
 ## [1.11.0] - 2025-10-16
 

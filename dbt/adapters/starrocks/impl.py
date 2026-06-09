@@ -255,6 +255,15 @@ class StarRocksAdapter(SQLAdapter):
     def convert_text_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         return "string"
 
+    @classmethod
+    def convert_number_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+        # The base SQLAdapter returns "float8" for decimal columns, which is a
+        # Postgres alias StarRocks doesn't accept (its parser treats the "8" as
+        # an expected precision and complains about the missing "("). Use the
+        # standard StarRocks type instead.
+        decimals = agate_table.aggregate(agate.MaxPrecision(col_idx))
+        return "double" if decimals else "bigint"
+
     def quote(self, identifier):
         return "`{}`".format(identifier)
 
