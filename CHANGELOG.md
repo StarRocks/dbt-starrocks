@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-06-10
+
 ### Added
 - Configurable poll backoff for async task polling (`poll_interval`, `poll_max_delay`, `poll_factor`) (#112)
 - Task graceful shutdown (#98)
