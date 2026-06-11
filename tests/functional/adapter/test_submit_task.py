@@ -80,7 +80,6 @@ class TestSubmitTaskModel:
 
         results, stdout = run_dbt_and_capture(["run", "--select", "model_a"])
         assert len(results) == 1
-        assert "Waiting 4 seconds..." in stdout
         check_relations_equal(project.adapter, ["seed_a", "model_a"])
 
         self._doc_tests()

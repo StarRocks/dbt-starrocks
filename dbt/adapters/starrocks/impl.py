@@ -42,7 +42,7 @@ logger = AdapterLogger("starrocks")
 
 SQLQueryResult: TypeAlias = Tuple[AdapterResponse, "agate.Table"]
 
-MAX_POLL_DELAY = 600  # 10 minutes
+
 SUBMIT_TASK_TEMPLATE = "submit /*+set_var(query_timeout={timeout})*/ task {task_id} as {sql}"
 POLL_TASK_TEMPLATE = "select * from information_schema.task_runs where task_name = '{task_id}'"
 
@@ -65,6 +65,19 @@ class StarRocksAdapter(SQLAdapter):
     Column = StarRocksColumn
     
     _running_tasks: Dict[str, str] = {}
+
+    @staticmethod
+    def _compute_poll_delay(attempt: int, poll_interval: int = 1, poll_factor: float = 2.0, poll_max_delay: int = 600) -> float:
+        """
+        Compute the polling delay using configurable exponential backoff.
+
+        :param attempt: The current attempt number (starting from 1).
+        :param poll_interval: Base delay in seconds.
+        :param poll_factor: Growth multiplier.
+        :param poll_max_delay: Maximum delay cap in seconds.
+        :return: The computed delay in seconds.
+        """
+        return min(poll_max_delay, poll_interval * (poll_factor ** attempt))
 
     @staticmethod
     def _is_submittable_etl(sql: str) -> bool:
@@ -157,8 +170,12 @@ class StarRocksAdapter(SQLAdapter):
                 logger.info(f"Task [{task_id}] finished with status [{status}]")
                 return response, task_run_status
 
-            # Compute next delay
-            poll_delay = min(MAX_POLL_DELAY, 2 ** _attempts)
+            poll_delay = self._compute_poll_delay(
+                _attempts,
+                self.config.credentials.poll_interval,
+                self.config.credentials.poll_factor,
+                self.config.credentials.poll_max_delay,
+            )
             _attempts += 1
 
             # Notify end user

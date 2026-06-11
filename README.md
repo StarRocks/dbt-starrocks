@@ -76,7 +76,10 @@ starrocks:
 | version             | Let Plugin try to go to a compatible starrocks version             | Optional  | `3.1.0`                        |
 | use_pure            | set to "true" to use C extensions                                  | Optional  | `true`                         |
 | is_async            | "true" to submit suitable tasks as etl tasks.                      | Optional  | `true`                         |
-| async_query_timeout | Sets the `query_timeout` value when submitting a task to StarRocks | Optional  | `300`                            |
+| async_query_timeout | Sets the `query_timeout` value when submitting a task to StarRocks | Optional  | `300`                          |
+| poll_interval       | Base delay in seconds between task status polls                    | Optional  | `1`                            |
+| poll_max_delay      | Maximum delay cap in seconds for task polling                      | Optional  | `600`                          |
+| poll_factor         | Growth multiplier for exponential backoff between polls            | Optional  | `2.0`                          |
 
 More details about setting `use_pure` and other connection arguments [here](https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html)
 
@@ -186,7 +189,42 @@ The following statements will be submitted automatically:
 
 Once the task has been submitted, the adapter will periodically poll StarRocks' `information_schema.task_runs` to retrieve the task status.
 
-The polling is implemented using an exponential backoff, with a maximum delay of 10 minutes. The adapter's connection to the StarRocks' cluster will not be maintained during the waiting period. It will be re-opened right before the next status polling phase.
+The polling is implemented using a configurable exponential backoff. The adapter's connection to the StarRocks' cluster will not be maintained during the waiting period. It will be re-opened right before the next status polling phase.
+
+The polling delay is calculated as: `min(poll_max_delay, poll_interval * (poll_factor ^ attempt))`
+
+| Option         | Description                              | Default |
+|----------------|------------------------------------------|---------|
+| poll_interval  | Base delay in seconds between polls      | `1`     |
+| poll_max_delay | Maximum delay cap in seconds             | `600`   |
+| poll_factor    | Growth multiplier for exponential backoff | `2.0`   |
+
+For example, with `poll_interval: 5`, `poll_factor: 1.5`, `poll_max_delay: 60`:
+
+| Attempt | Delay |
+|---------|-------|
+| 1       | 7.5s  |
+| 2       | 11.25s |
+| 3       | 16.9s |
+| 4       | 25.3s |
+| 5       | 38s   |
+| 6       | 57s   |
+| 7+      | 60s (capped) |
+
+Compared to defaults (`poll_interval: 1`, `poll_factor: 2.0`, `poll_max_delay: 600`):
+
+| Attempt | Delay |
+|---------|-------|
+| 1       | 2s    |
+| 2       | 4s    |
+| 3       | 8s    |
+| 4       | 16s   |
+| 5       | 32s   |
+| 6       | 64s   |
+| 7       | 128s  |
+| 8       | 256s  |
+| 9       | 512s  |
+| 10+     | 600s (capped) |
 
 ### Controlling the task timeout
 
@@ -213,6 +251,9 @@ my_profile:
       password: password
       is_async: true
       async_query_timeout: 3600 # 1 hour
+      poll_interval: 5
+      poll_max_delay: 60
+      poll_factor: 1.5
 ```
 
 ## Test Adapter

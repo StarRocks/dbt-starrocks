@@ -48,6 +48,9 @@ class StarRocksCredentials(Credentials):
     use_pure: Optional[str] = None
     is_async: Optional[bool] = False
     async_query_timeout: Optional[int] = 300
+    poll_interval: Optional[int] = 1
+    poll_max_delay: Optional[int] = 600
+    poll_factor: Optional[float] = 2.0
     auth_plugin: Optional[str] = ''
     
     def __init__(self, **kwargs):
@@ -88,6 +91,9 @@ class StarRocksCredentials(Credentials):
             "use_pure",
             "is_async",
             "async_query_timeout",
+            "poll_interval",
+            "poll_max_delay",
+            "poll_factor",
             "auth_plugin",
         )
 
