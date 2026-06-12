@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Configurable poll backoff for async task polling (`poll_interval`, `poll_max_delay`, `poll_factor`) (#112)
 - Task graceful shutdown (#98)
 - `on_view_exists='replace'` option for view materialization (#95)
 - View materialization skips recreating a view when its SQL is unchanged, keeping dependent materialized views active (#109)
