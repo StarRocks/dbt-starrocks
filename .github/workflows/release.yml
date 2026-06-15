@@ -3,11 +3,15 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Dry run (skip PyPI publish and GitHub release)'
-        required: false
-        type: boolean
-        default: false
+      target:
+        description: 'Release target'
+        required: true
+        type: choice
+        default: dry-run
+        options:
+          - dry-run
+          - test-pypi
+          - production
 
 jobs:
   release:
@@ -114,7 +118,7 @@ jobs:
           python -m build
 
       - name: Dry-run summary
-        if: ${{ inputs.dry_run }}
+        if: ${{ inputs.target == 'dry-run' }}
         run: |
           echo "Version: ${{ steps.get_version.outputs.version }}"
           echo "Tag: v${{ steps.get_version.outputs.version }}"
@@ -125,14 +129,21 @@ jobs:
           echo "Release notes would be:"
           cat /tmp/release_notes.md
 
+      - name: Publish to TestPyPI
+        if: ${{ inputs.target == 'test-pypi' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+
       - name: Publish to PyPI
-        if: ${{ !inputs.dry_run }}
+        if: ${{ inputs.target == 'production' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Create GitHub Release
-        if: ${{ !inputs.dry_run }}
+        if: ${{ inputs.target == 'production' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.get_version.outputs.version }}

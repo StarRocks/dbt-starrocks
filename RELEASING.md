@@ -16,15 +16,13 @@ Ensure CI passes before merging.
 
 ### 3. Run Release Workflow
 
-Go to **Actions → Release → Run workflow**
+Go to **Actions → Release → Run workflow**, pick a **Release target**:
 
-**Dry-run (recommended first):**
-- Check "Dry run" 
-- Verify output
+1. **`dry-run`** (default) — builds the sdist + wheel, prints the release notes preview. No publishing, no tag, no GitHub release.
+2. **`test-pypi`** — publishes to [TestPyPI](https://test.pypi.org/) so you can `pip install -i https://test.pypi.org/simple/ dbt-starrocks==<version>` and smoke-test. No tag, no GitHub release. Requires the `TEST_PYPI_API_TOKEN` repo secret.
+3. **`production`** — publishes to PyPI, creates the `v<version>` git tag, and publishes the GitHub release. Requires the `PYPI_API_TOKEN` repo secret.
 
-**Actual release:**
-- Uncheck "Dry run"
-- Workflow publishes to PyPI and creates GitHub release
+Recommended flow: `dry-run` → `test-pypi` → install from TestPyPI and verify → `production`.
 
 ## The workflow will fail if:
 - CI hasn't passed
