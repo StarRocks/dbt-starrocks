@@ -35,7 +35,7 @@ jobs:
 
           # Get the latest CI run for this commit
           CI_STATUS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/check-runs \
-            --jq '[.check_runs[] | select(.name == "integration-test")] | first | .conclusion // empty')
+            --jq '[.check_runs[] | select(.name == "CI")] | first | .conclusion // empty')
 
           if [ "$CI_STATUS" = "success" ]; then
             echo "CI workflow passed for commit ${{ github.sha }}"
