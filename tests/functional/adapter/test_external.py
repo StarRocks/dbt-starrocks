@@ -48,7 +48,7 @@ class TestExternalCatalogTable:
         }
 
     @pytest.fixture(scope="class", autouse=True)
-    def setup_external_catalog(self, project):
+    def setup_external_catalog(self, project, ensure_iceberg_catalog):
         """Create external database with location"""
         project.run_sql("""
             CREATE DATABASE IF NOT EXISTS iceberg_catalog.dbt_test_db
