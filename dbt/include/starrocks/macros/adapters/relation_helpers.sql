@@ -18,7 +18,7 @@
 
   {%- set is_create_table = is_create_table_as is none or not is_create_table_as -%}
 
-  {%- set table_type = config.get('table_type', 'DUPLICATE') -%}
+  {%- set table_type = config.get('table_type', 'DUPLICATE') | upper -%}
   {%- set keys = config.get('keys') -%}
   {%- set partition_by = config.get('partition_by') -%}
   {%- set partition_by_init = config.get('partition_by_init') -%}
@@ -33,6 +33,37 @@
   {%- if materialized == 'incremental' and unique_key is not none -%}
     {%- set table_type = 'PRIMARY' -%}
     {%- set keys = unique_key if unique_key is sequence and unique_key is not mapping and unique_key is not string else [unique_key] -%}
+  {%- endif -%}
+
+  {# Derive table type from model contract constraints when no explicit keys configured #}
+  {%- set contract_config = config.get('contract') -%}
+  {%- if contract_config and contract_config.enforced and keys is none -%}
+    {%- set ns = namespace(table_type=table_type, keys=none) -%}
+
+    {# Model-level constraints take priority #}
+    {%- for constraint in model.get('constraints', []) -%}
+      {%- if constraint.type == 'primary_key' and constraint.columns and ns.keys is none -%}
+        {%- set ns.table_type = 'PRIMARY' -%}
+        {%- set ns.keys = constraint.columns -%}
+      {%- endif -%}
+    {%- endfor -%}
+
+    {# Fallback: column-level constraints #}
+    {%- if ns.keys is none -%}
+      {%- set pk_cols = [] -%}
+      {%- for col_name, col_info in model.get('columns', {}).items() -%}
+        {%- for con in col_info.get('constraints', []) -%}
+          {%- if con.type == 'primary_key' -%}{%- do pk_cols.append(col_name) -%}{%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {%- if pk_cols -%}
+        {%- set ns.table_type = 'PRIMARY' -%}
+        {%- set ns.keys = pk_cols -%}
+      {%- endif -%}
+    {%- endif -%}
+
+    {%- set table_type = ns.table_type -%}
+    {%- set keys = ns.keys -%}
   {%- endif -%}
 
   {# 1. SET ENGINE #}
