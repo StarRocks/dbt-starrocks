@@ -125,6 +125,55 @@ models:
         data_type: varchar(255)
 """.lstrip()
 
+model_pk_implicit_not_null_sql = """
+{{ config(
+    materialized='table',
+    distributed_by=['id'],
+) }}
+select 1 as id, 'hello' as name
+""".lstrip()
+
+pk_implicit_not_null_schema_yml = """
+version: 2
+models:
+  - name: model_pk_implicit_not_null
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: id
+        data_type: int
+        constraints:
+          - type: primary_key
+      - name: name
+        data_type: varchar(255)
+""".lstrip()
+
+model_pk_and_not_null_sql = """
+{{ config(
+    materialized='table',
+    distributed_by=['id'],
+) }}
+select 1 as id, 'hello' as name
+""".lstrip()
+
+pk_and_not_null_schema_yml = """
+version: 2
+models:
+  - name: model_pk_and_not_null
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: id
+        data_type: int
+        constraints:
+          - type: primary_key
+          - type: not_null
+      - name: name
+        data_type: varchar(255)
+""".lstrip()
+
 
 class TestNotNullConstraint:
     """not_null constraint emits NOT NULL inline column DDL."""
@@ -216,3 +265,43 @@ class TestExplicitConfigOverridesConstraints:
         ddl = project.run_sql(f"SHOW CREATE TABLE {relation}", fetch="one")[1]
         assert "DUPLICATE KEY" in ddl
         assert "PRIMARY KEY" not in ddl
+
+
+class TestPrimaryKeyImplicitNotNull:
+    """PRIMARY KEY columns are implicitly NOT NULL in StarRocks even without an explicit not_null constraint."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "model_pk_implicit_not_null.sql": model_pk_implicit_not_null_sql,
+            "schema.yml": pk_implicit_not_null_schema_yml,
+        }
+
+    def test_pk_column_is_not_null(self, project):
+        results = run_dbt(["run"])
+        assert len(results) == 1
+        relation = results[0].node.relation_name
+        ddl = project.run_sql(f"SHOW CREATE TABLE {relation}", fetch="one")[1]
+        assert "PRIMARY KEY" in ddl
+        # StarRocks implicitly enforces NOT NULL on all PRIMARY KEY columns
+        assert "`id`" in ddl and "NOT NULL" in ddl
+
+
+class TestPrimaryKeyAndNotNullCombined:
+    """Combining primary_key and not_null on the same column is redundant but accepted by StarRocks."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "model_pk_and_not_null.sql": model_pk_and_not_null_sql,
+            "schema.yml": pk_and_not_null_schema_yml,
+        }
+
+    def test_pk_and_not_null_succeeds(self, project):
+        results = run_dbt(["run"])
+        assert len(results) == 1
+        relation = results[0].node.relation_name
+        ddl = project.run_sql(f"SHOW CREATE TABLE {relation}", fetch="one")[1]
+        assert "PRIMARY KEY" in ddl
+        # Redundant NOT NULL on a PK column is accepted without error
+        assert "`id`" in ddl and "NOT NULL" in ddl

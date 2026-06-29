@@ -39,6 +39,7 @@ $ pip install dbt-starrocks
 |        ❌         |         *4          |        *4        |        ✅         |            Submit task            |
 |        ❌         |          ✅          |        ✅         |        ✅         |  Microbatch (Insert Overwrite)   |
 |        ❌         |          ❌          |        ❌         |        ✅         | Microbatch (Dynamic Overwrite)   |
+|        ✅         |          ✅          |        ✅         |        ✅         |       Model contracts (constraints)        |
 
 ### Notice
 1. When StarRocks Version < 2.5, `Create table as` can only set engine='OLAP' and table_type='DUPLICATE'
@@ -46,6 +47,7 @@ $ pip install dbt-starrocks
 3. When StarRocks Version < 3.1 distributed_by is required
 4. Verify the specific `submit task` support for your version, see [SUBMIT TASK](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/ETL/SUBMIT_TASK/).
 5. **Views:** when a view's SQL is unchanged, `dbt run` issues no DDL on the view, leaving it in place (the run log notes `skip <view>`, and the model still completes as a successful no-op). This avoids deactivating dependent materialized views, which StarRocks does whenever a base view is recreated, even with identical SQL.
+6. `table_type` is case-insensitive — `'primary'`, `'PRIMARY'`, `'Primary'` are all accepted.
 
 ## Profile Configuration
 
@@ -169,6 +171,67 @@ Add a new `incremental_strategy` property that supports the following values:
 - `dynamic_overwrite`: Will apply `overwrite` with `dynamic_overwrite = true` to the inserts.
 
 For more details on the different behaviors, see [StarRocks' documentation for INSERT](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/INSERT).
+
+## Model Contracts and Constraints
+
+dbt-starrocks supports [dbt model contracts](https://docs.getdbt.com/docs/collaborate/govern/model-contracts) with the following constraint types:
+
+| Constraint type | Support | Behavior |
+|---|---|---|
+| `not_null` | Enforced | Emits `NOT NULL` in column DDL |
+| `primary_key` | Enforced | Sets the table type to `PRIMARY KEY` and derives key columns |
+| `unique` | Not supported | Ignored; table falls back to `DUPLICATE KEY` |
+| `check` | Not supported | Ignored |
+| `foreign_key` | Not supported | Ignored |
+
+> **Note:** StarRocks `PRIMARY KEY` tables use last-write-wins deduplication — they do not reject duplicate inserts.
+
+### Deriving table type from constraints
+
+When `contract.enforced: true` is set and no explicit `table_type`/`keys` config is provided, the adapter inspects the model's constraints and automatically configures the table:
+
+- A `primary_key` constraint on one or more **columns** creates a `PRIMARY KEY` table keyed on those columns.
+- A model-level `primary_key` constraint (with a `columns` list) takes priority over column-level constraints.
+- Explicit `table_type` and `keys` config always win over constraints.
+
+**Column-level primary key:**
+```yaml
+models:
+  - name: my_model
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: id
+        data_type: int
+        constraints:
+          - type: primary_key
+      - name: name
+        data_type: varchar(255)
+        constraints:
+          - type: not_null
+```
+
+**Model-level primary key (multi-column):**
+```yaml
+models:
+  - name: my_model
+    config:
+      contract:
+        enforced: true
+    constraints:
+      - type: primary_key
+        columns: [tenant_id, id]
+    columns:
+      - name: tenant_id
+        data_type: int
+      - name: id
+        data_type: int
+      - name: name
+        data_type: varchar(255)
+```
+
+Both examples above produce a `PRIMARY KEY(id)` (or `PRIMARY KEY(tenant_id, id)`) table without needing `table_type='PRIMARY'` or `keys=[...]` in the model config.
 
 ## Submittable ETL tasks
 
