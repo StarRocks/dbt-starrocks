@@ -16,9 +16,9 @@
 import os
 import sys
 
-if sys.version_info < (3, 9) or sys.version_info >= (3, 14):
+if sys.version_info < (3, 9) or sys.version_info >= (3, 15):
     print("Error: dbt-starrocks does not support this version of Python.")
-    print("Please install Python 3.9 or higher but less than 3.14.")
+    print("Please install Python 3.9 or higher but less than 3.15.")
     sys.exit(1)
 
 from setuptools import find_namespace_packages, setup
@@ -41,7 +41,7 @@ with open(os.path.join(this_directory, "README.md"), encoding='utf-8') as f:
 
 package_name = "dbt-starrocks"
 # make sure this always matches dbt/adapters/starrocks/__version__.py
-package_version = "1.12.0"
+package_version = "1.12.1"
 description = """The Starrocks adapter plugin for dbt"""
 
 
@@ -57,7 +57,9 @@ setup(
     packages=find_namespace_packages(include=['dbt', 'dbt.*']),
     include_package_data=True,
     install_requires=[
-        "dbt-core>=1.9.0",
+        # dbt-core < 1.12 pins mashumaro < 3.15, which fails at import time on Python 3.14
+        "dbt-core>=1.9.0; python_version < '3.14'",
+        "dbt-core>=1.12.0; python_version >= '3.14'",
         "mysql-connector-python>=8.1",
     ],
     zip_safe=False,
@@ -75,6 +77,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
     ],
-    python_requires=">=3.9,<3.14",
+    python_requires=">=3.9,<3.15",
 )

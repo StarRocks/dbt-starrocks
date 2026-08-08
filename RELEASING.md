@@ -5,8 +5,8 @@
 ### 1. Create Version Bump PR
 
 Update version in both files:
-- [`setup.py`](setup.py#L44): `package_version = "1.12.0"`
-- [`dbt/adapters/starrocks/__version__.py`](dbt/adapters/starrocks/__version__.py#L16): `version = "1.12.0"`
+- [`setup.py`](setup.py#L44): `package_version = "1.12.1"`
+- [`dbt/adapters/starrocks/__version__.py`](dbt/adapters/starrocks/__version__.py#L16): `version = "1.12.1"`
 
 Move `[Unreleased]` items in [`CHANGELOG.md`](CHANGELOG.md) to new version section.
 

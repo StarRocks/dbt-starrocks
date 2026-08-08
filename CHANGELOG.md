@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-08-07
+
+### Added
+- Python 3.14 support: raise the `python_requires` cap to `<3.15`, add 3.14 to the CI matrix, and require `dbt-core>=1.12` on Python 3.14 (older dbt-core pins `mashumaro<3.15`, which fails at import time on 3.14)
+
+### Changed
+- Bump pinned `dbt-core` in `dev_requirements.txt` to 1.12.0
+
 ## [1.12.0] - 2026-06-10
 
 ### Added
