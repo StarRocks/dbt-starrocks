@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.2] - 2026-09-15
+
 ### Fixed
 - Relations in external catalogs are now discoverable, so `incremental` and `table` models
   targeting an Iceberg/Hive catalog no longer fail on every run after the first with
