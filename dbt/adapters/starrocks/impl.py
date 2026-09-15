@@ -43,6 +43,21 @@ logger = AdapterLogger("starrocks")
 SQLQueryResult: TypeAlias = Tuple[AdapterResponse, "agate.Table"]
 
 
+DEFAULT_CATALOG = "default_catalog"
+
+
+def _external_catalog(database: Optional[str]) -> Optional[str]:
+    """Return `database` when it names an external catalog, else None.
+
+    Relations in the internal catalog carry `database = None` (see
+    `starrocks__generate_database_name`), so a value here means the relation
+    lives in an external catalog and must stay addressed by it.
+    """
+    if database is not None and database != DEFAULT_CATALOG:
+        return database
+    return None
+
+
 SUBMIT_TASK_TEMPLATE = "submit /*+set_var(query_timeout={timeout})*/ task {task_id} as {sql}"
 POLL_TASK_TEMPLATE = "select * from information_schema.task_runs where task_name = '{task_id}'"
 
@@ -293,7 +308,13 @@ class StarRocksAdapter(SQLAdapter):
         return exists
 
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
-        if not self.Relation.get_default_include_policy().database:
+        # The include policy drops the database component because internal-catalog
+        # relations are addressed as `schema`.`identifier`. An external catalog is
+        # part of the relation's identity, so it has to survive the lookup.
+        if (
+            _external_catalog(database) is None
+            and not self.Relation.get_default_include_policy().database
+        ):
             database = None
 
         return super().get_relation(database, schema, identifier)
@@ -313,7 +334,7 @@ class StarRocksAdapter(SQLAdapter):
                 )
             _database, name, schema, type_info = row
             relation = self.Relation.create(
-                database=None,
+                database=_external_catalog(_database),
                 schema=schema,
                 identifier=name,
                 type=self.Relation.get_relation_type(type_info),

@@ -92,7 +92,7 @@
       ) -%}
     {%- endif -%}
 
-    {%- set existing_relation = load_relation(this) -%}
+    {%- set existing_relation = load_relation(target_relation) -%}
     {%- set incremental_strategy = starrocks__validate_get_incremental_strategy(config) -%}
 
     {{ drop_relation_if_exists(tmp_relation) }}
@@ -109,6 +109,14 @@
     {%- elif existing_relation.is_view -%}
         {#-- Can't overwrite a view with a table, drop it before creating table --#}
         {{ log("Dropping relation " ~ target_relation ~ " because it is a view and this model is a table.") }}
+        {%- do adapter.drop_relation(existing_relation) -%}
+        {%- call statement('main') -%}
+            {{ starrocks__create_table_as(False, target_relation, compiled_code, is_external) }}
+        {%- endcall -%}
+
+    {%- elif full_refresh_mode and is_external -%}
+        {#-- External catalogs have no ALTER TABLE ... SWAP WITH, so the backup-and-exchange
+             route below is unavailable: drop and recreate in place instead. --#}
         {%- do adapter.drop_relation(existing_relation) -%}
         {%- call statement('main') -%}
             {{ starrocks__create_table_as(False, target_relation, compiled_code, is_external) }}

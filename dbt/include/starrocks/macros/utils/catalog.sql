@@ -27,3 +27,14 @@
 {% macro starrocks__is_internal_catalog() -%}
   {{ return(starrocks__catalog_for() == 'default_catalog') }}
 {%- endmacro %}
+
+{# Normalize a relation's `database` component to an external catalog name, or
+   none when it addresses the internal catalog. Relations in `default_catalog`
+   carry `database = none` (see `starrocks__generate_database_name`), so a name
+   here means the relation lives outside it and must be addressed explicitly. #}
+{% macro starrocks__external_catalog(database) -%}
+  {%- if database is not none and database != 'default_catalog' -%}
+    {{ return(database) }}
+  {%- endif -%}
+  {{ return(none) }}
+{%- endmacro %}

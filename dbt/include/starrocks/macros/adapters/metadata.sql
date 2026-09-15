@@ -15,7 +15,22 @@
  */
 
 {% macro starrocks__list_relations_without_caching(schema_relation) -%}
+  {#-- An unqualified `information_schema` resolves in the session's current catalog, so an
+       external catalog has to be named explicitly or its relations are invisible here. The
+       catalog is carried back out as "database" so the relation cache can match on it. --#}
+  {%- set catalog = starrocks__external_catalog(schema_relation.database) -%}
   {% call statement('list_relations_without_caching', fetch_result=True) %}
+    {%- if catalog is not none %}
+    select
+      '{{ catalog }}' as "database",
+      tbl.table_name as name,
+      tbl.table_schema as "schema",
+      case when tbl.table_type = 'BASE TABLE' or tbl.table_type = 'TABLE' then 'table'
+           when tbl.table_type = 'VIEW' then 'view'
+           else 'unknown' end as table_type
+    from `{{ catalog }}`.information_schema.tables tbl
+    where tbl.table_schema = '{{ schema_relation.schema }}'
+    {%- else %}
     select
       null as "database",
       tbl.table_name as name,
@@ -30,6 +45,7 @@
     on tbl.TABLE_SCHEMA = mv.TABLE_SCHEMA
     and tbl.TABLE_NAME = mv.TABLE_NAME
     where tbl.table_schema = '{{ schema_relation.schema }}'
+    {%- endif %}
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
 {%- endmacro %}

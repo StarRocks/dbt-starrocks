@@ -162,6 +162,29 @@ Finally, you might use below marco quote
 {{ source('external_example', 'hive_table_name') }}
 ```
 
+## Write To Catalog
+Set `catalog` and `database` in a model's config to build it inside an external catalog.
+Both are required together; `catalog` defaults to the profile's `catalog`.
+```
+{{ config(materialized='table', catalog='iceberg_catalog', database='iceberg_db') }}
+{{ config(materialized='incremental', incremental_strategy='dynamic_overwrite',
+          catalog='iceberg_catalog', database='iceberg_db',
+          partition_by=['day(`modified_at`)']) }}
+```
+The table name comes from the model's file name (or its `alias`), not from `database`.
+
+Only `partition_by`, `partition_type` (defaulting to `Expr`), `partition_by_init` and
+`properties` are applied to external tables. `table_type`, `keys`, `distributed_by`,
+`buckets` and `order_by` describe OLAP tables and are ignored here — Iceberg rejects key
+clauses outright.
+
+Because there are no keys, `unique_key` cannot deduplicate an external-catalog incremental
+model: `INSERT INTO` appends. Replace partitions instead, with `insert_overwrite` or
+`dynamic_overwrite`. On Iceberg both replace only the partitions the query produced and
+leave the others in place, so they behave alike there; the difference between them applies
+to OLAP tables. Row-level `unique_key` semantics would need `DELETE` on Iceberg, which
+StarRocks only writes position delete files for from 4.1 onwards.
+
 ## Dynamic Overwrite (StarRocks >= 3.4)
 Add a new `incremental_strategy` property that supports the following values:
 - `default` (or omitted): Standard inserts without `overwrite`.

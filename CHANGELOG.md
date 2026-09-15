@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Relations in external catalogs are now discoverable, so `incremental` and `table` models
+  targeting an Iceberg/Hive catalog no longer fail on every run after the first with
+  `Table '<name>' already exists`. `starrocks__list_relations_without_caching` and
+  `starrocks__get_columns_in_relation` qualify `information_schema` with the catalog and
+  report it back as the relation's `database`, and `get_relation` keeps that component
+  instead of dropping it.
+- `incremental` models in an external catalog look their target up by catalog rather than
+  through `this`, which always addresses `default_catalog`.
+- `--full-refresh` on an external-catalog `incremental` model drops and recreates the table
+  instead of using `ALTER TABLE ... SWAP WITH`, which external catalogs do not support.
+
 ## [1.12.1] - 2026-08-07
 
 ### Added
