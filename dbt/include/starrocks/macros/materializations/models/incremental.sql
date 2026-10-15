@@ -71,7 +71,7 @@
     {%- set tmp_relation = make_temp_relation(this).incorporate(type='table') -%}
 
     {%- set catalog = config.get('catalog', target.catalog) -%}
-    {%- set database = config.get('database') or target.schema -%}
+    {%- set database = config.get('database') or target_relation.schema -%}
 
     {%- if catalog != 'default_catalog' and database -%}
       {%- set is_external = true -%}
