@@ -196,3 +196,64 @@ class TestExternalCatalogIncremental:
         # drops and recreates: only what the query produces survives.
         assert len(run_dbt(["run", "--full-refresh", "--vars", "seed_name: partition_1"])) == 1
         assert self._ids_by_partition(project) == {1: [1, 2, 3, 4, 5]}
+
+
+external_catalog_incremental_custom_schema_sql = """
+{{
+    config(
+        materialized = 'incremental',
+        incremental_strategy = 'insert_overwrite',
+        catalog = 'iceberg_catalog',
+        schema = 'custom',
+    )
+}}
+select 1 as id
+""".lstrip()
+
+
+class TestExternalCatalogIncrementalCustomSchema:
+    """An incremental model in an external catalog builds in its resolved schema.
+
+    With no `database` config, the model has to land in the schema dbt resolved for
+    it (`<target schema>_custom` here), as a table model does. It used to land in
+    the profile's schema while dbt reported the resolved one.
+    """
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "incremental_custom_schema.sql": external_catalog_incremental_custom_schema_sql,
+        }
+
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_external_catalog(self, project):
+        # Both schemas exist, so building in the wrong one succeeds rather than
+        # failing on a missing database.
+        schemas = [project.test_schema, f"{project.test_schema}_custom"]
+        for schema in schemas:
+            project.run_sql(f"""
+                CREATE DATABASE IF NOT EXISTS iceberg_catalog.{schema}
+                PROPERTIES ("location" = "s3://warehouse/{schema}")
+            """)
+        yield
+
+        for schema in schemas:
+            project.run_sql(
+                f"DROP TABLE IF EXISTS iceberg_catalog.{schema}.incremental_custom_schema"
+            )
+            project.run_sql(f"DROP DATABASE IF EXISTS iceberg_catalog.{schema} FORCE")
+
+    @staticmethod
+    def _tables(project, schema):
+        rows = project.run_sql(f"SHOW TABLES FROM iceberg_catalog.{schema}", fetch="all")
+        return [row[0] for row in rows]
+
+    def test_incremental_builds_in_resolved_schema(self, project):
+        # The second run takes the incremental path against the table the first created.
+        for _ in range(2):
+            assert len(run_dbt(["run"])) == 1
+
+        assert self._tables(project, f"{project.test_schema}_custom") == [
+            "incremental_custom_schema"
+        ]
+        assert self._tables(project, project.test_schema) == []

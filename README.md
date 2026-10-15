@@ -163,13 +163,16 @@ Finally, you might use below marco quote
 ```
 
 ## Write To Catalog
-Set `catalog` and `database` in a model's config to build it inside an external catalog.
-Both are required together; `catalog` defaults to the profile's `catalog`.
+Set `catalog` in a model's config, or in the profile, to build it inside an external catalog.
+`database` names the database in that catalog. Without it, `table` and `incremental` models
+use the model's resolved schema, as models in `default_catalog` do: the profile's `schema`, or
+`<schema>_<custom>` when the model sets a custom schema with `schema` or `+schema`.
 ```
 {{ config(materialized='table', catalog='iceberg_catalog', database='iceberg_db') }}
 {{ config(materialized='incremental', incremental_strategy='dynamic_overwrite',
           catalog='iceberg_catalog', database='iceberg_db',
           partition_by=['day(`modified_at`)']) }}
+{{ config(materialized='table', catalog='iceberg_catalog', schema='marts') }}
 ```
 The table name comes from the model's file name (or its `alias`), not from `database`.
 
