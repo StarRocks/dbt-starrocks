@@ -108,8 +108,10 @@ models:
   refresh_method: 'async'               // only for materialized view default manual
   on_view_exists: 'replace'             // only for view: use CREATE OR REPLACE VIEW instead of DROP + CREATE
 
-  // For 'materialized=incremental' in version >= 3.4
-  incremental_strategy: 'dynamic_overwrite' // Supported values: ['default', 'insert_overwrite', 'dynamic_overwrite']
+  // For 'materialized=incremental'
+  incremental_strategy: 'merge'           // Supported values: ['default', 'append', 'merge', 'insert_overwrite', 'dynamic_overwrite', 'microbatch'] ('default' will be deprecated)
+  unique_key: ['id']                      // Makes the table PRIMARY KEY, as 'merge' requires; not allowed with 'append'
+  // 'insert_overwrite' and 'dynamic_overwrite' require version >= 3.4
 
   // For 'materialized=incremental' and 'incremental_strategy=microbatch'
   event_time: 'some_timestamp_column'     // The column name of the event time
@@ -129,6 +131,8 @@ models:
 {{ config(materialized='table', partition_by=['date_trunc("day", first_order)'], partition_type='Expr') }}
 {{ config(materialized='table', table_type='PRIMARY', keys=['customer_id'], order_by=['first_name', 'last_name'] }}
 {{ config(materialized='incremental', table_type='PRIMARY', engine='OLAP', buckets=32, distributed_by=['id']) }}
+{{ config(materialized='incremental', incremental_strategy='merge', unique_key=['id']) }}
+{{ config(materialized='incremental', incremental_strategy='append') }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='dynamic_overwrite') }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='report_day', begin='2025-01-01', lookback=1, batch_size='day') }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='report_day', begin='2025-01-01', lookback=1, batch_size='day', microbatch_use_dynamic_overwrite=true) }}
@@ -188,11 +192,53 @@ leave the others in place, so they behave alike there; the difference between th
 to OLAP tables. Row-level `unique_key` semantics would need `DELETE` on Iceberg, which
 StarRocks only writes position delete files for from 4.1 onwards.
 
-## Dynamic Overwrite (StarRocks >= 3.4)
-Add a new `incremental_strategy` property that supports the following values:
-- `default` (or omitted): Standard inserts without `overwrite`.
-- `insert_overwrite`: Will apply `overwrite` with `dynamic_overwrite = false` to the inserts.
-- `dynamic_overwrite`: Will apply `overwrite` with `dynamic_overwrite = true` to the inserts.
+## Incremental strategies
+The `incremental_strategy` config supports the following values:
+
+- `append`: Plain `INSERT INTO`. Rows are added; nothing is deduplicated or replaced.
+  Requires a DUPLICATE KEY table, so `unique_key` cannot be set.
+- `merge`: Upsert on the table's PRIMARY KEY. Requires a PRIMARY KEY table: set `unique_key`,
+  or `table_type='PRIMARY'` with `keys`.
+- `insert_overwrite`: Applies `overwrite` with `dynamic_overwrite = false` (StarRocks >= 3.4).
+- `dynamic_overwrite`: Applies `overwrite` with `dynamic_overwrite = true` (StarRocks >= 3.4).
+- `microbatch`: Processes the model in time-based batches; see the microbatch configs above.
+- `default` (or omitted): Behaviour depends on the table type. **Will be deprecated** in a
+  future release; see below.
+
+`append` and `merge` check the existing table's key type on every incremental run. If the
+model's config changed since the table was built (for example, `unique_key` was added),
+the run fails until you rebuild the table with `dbt run --full-refresh`.
+
+### How `merge` works
+StarRocks has no `MERGE` statement. Instead, setting `unique_key` on an incremental model
+builds the target as a [PRIMARY KEY table](https://docs.starrocks.io/docs/table_design/table_types/primary_key_table/)
+keyed on those columns, where an ordinary `INSERT INTO` *is* an upsert: matching keys are
+replaced, new keys are inserted.
+
+Three consequences worth knowing:
+
+- The whole row is always replaced, so `merge_update_columns` and `merge_exclude_columns`
+  are not supported and will raise an error rather than be silently ignored.
+- On a partitioned table, StarRocks requires the partition column to be part of the primary
+  key, so `unique_key` must include your `partition_by` column.
+- The PRIMARY KEY is set when the table is created, and incremental runs upsert on that key.
+  Changing `unique_key` (or `keys`) on an existing model has no effect until the table is
+  rebuilt with `dbt run --full-refresh`, or its key is migrated outside dbt.
+
+`merge` is not supported for models in an external catalog, whose tables have no PRIMARY KEY.
+
+### `default` will be deprecated
+`default`, which is also what you get when `incremental_strategy` is not set, runs a plain
+`INSERT INTO` whose effect depends on the table type: it upserts into a PRIMARY KEY table and
+appends to a DUPLICATE KEY table. It is still fully supported, and each run logs a notice
+that it will be deprecated in a future release. To prepare, switch to the explicit strategy
+for your table, which runs the same SQL:
+
+| Table built by the model | Use |
+|---|---|
+| PRIMARY KEY (`unique_key` set, or `table_type='PRIMARY'`) | `merge` |
+| DUPLICATE KEY (the default table type) | `append` |
+| External catalog | `append` |
 
 For more details on the different behaviors, see [StarRocks' documentation for INSERT](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/INSERT).
 

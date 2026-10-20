@@ -418,9 +418,17 @@ class StarRocksAdapter(SQLAdapter):
 
         return super()._get_one_catalog(information_schema, schemas, used_schemas)
 
+    @available
     @override
     def valid_incremental_strategies(self):
-        return ["default", "insert_overwrite", "dynamic_overwrite", "microbatch"]
+        return [
+            "default",
+            "append",
+            "merge",
+            "insert_overwrite",
+            "dynamic_overwrite",
+            "microbatch",
+        ]
 
 
 def _catalog_filter_schemas(used_schemas: FrozenSet[Tuple[str, str]]) -> Callable[[agate.Row], bool]:

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `append` and `merge` incremental strategies. `append` is the explicit name for a plain
+  `INSERT INTO` into a DUPLICATE KEY table. `merge` upserts into a PRIMARY KEY table, built
+  from `unique_key` or from `table_type='PRIMARY'` with `keys`. Neither is supported in a
+  configuration where the name would be misleading: `append` fails on a PRIMARY or UNIQUE
+  KEY table, where the insert would upsert, and `merge` fails on any other table type and in
+  external catalogs.
+- `append` and `merge` check the existing table's key type on each incremental run, so a
+  table built before its key config changed fails with a pointer to `--full-refresh`
+  instead of silently appending or upserting.
+
+### Changed
+- `incremental_strategy='default'`, which is also used when `incremental_strategy` is not
+  set, will be deprecated in a future release. It is still fully supported; each run now
+  logs an info-level notice. Its effect depends on the table type (it upserts into PRIMARY
+  KEY tables and appends to DUPLICATE KEY tables), so prefer `merge` or `append`, which
+  run the same SQL.
+
 ### Fixed
 - `incremental` models in an external catalog build in the model's resolved schema, as `table`
   models do. With no `database` config they used the profile's schema, so a custom schema
