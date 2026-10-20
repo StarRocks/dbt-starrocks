@@ -48,7 +48,7 @@ $ pip install dbt-starrocks
 4. Verify the specific `submit task` support for your version, see [SUBMIT TASK](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/ETL/SUBMIT_TASK/).
 5. **Views:** when a view's SQL is unchanged, `dbt run` issues no DDL on the view, leaving it in place (the run log notes `skip <view>`, and the model still completes as a successful no-op). This avoids deactivating dependent materialized views, which StarRocks does whenever a base view is recreated, even with identical SQL.
 6. `table_type` is case-insensitive — `'primary'`, `'PRIMARY'`, `'Primary'` are all accepted.
-7. Column names and data types are enforced; of the constraint types, only `primary_key` is applied (not enforced). See [Model Contracts and Constraints](#model-contracts-and-constraints).
+7. Column names and data types are checked; of the constraint types, only `primary_key` is applied (not enforced), and all others are ignored. See [Model Contracts and Constraints](#model-contracts-and-constraints).
 
 ## Profile Configuration
 
@@ -201,7 +201,10 @@ For more details on the different behaviors, see [StarRocks' documentation for I
 
 ## Model Contracts and Constraints
 
-dbt-starrocks supports [dbt model contracts](https://docs.getdbt.com/docs/collaborate/govern/model-contracts) for `table`, `incremental` and `view` models. With `contract.enforced: true`, dbt checks before building the model that the model's query returns exactly the columns declared in YAML, with matching data types, and fails the build otherwise. Types are compared by base type as reported by StarRocks, so `varchar(255)` and `varchar(65533)` are treated as the same type.
+dbt-starrocks supports [dbt model contracts](https://docs.getdbt.com/docs/collaborate/govern/model-contracts) for `table`, `incremental` and `view` models. An enforced contract does two things:
+
+1. **Column and type check.** Before building, dbt checks that the model's query returns exactly the columns declared in YAML, with matching data types, and fails the build otherwise. For example, a column declared `data_type: int` fails the build if the query returns it as `bigint` or `varchar`.
+2. **`primary_key` only.** Of dbt's constraint types, only `primary_key` has an effect: it makes the table a `PRIMARY KEY` table (see [Deriving table type from constraints](#deriving-table-type-from-constraints)). All other constraints, including `not_null`, are ignored with a warning.
 
 The contract validates the model's query, not the table built from it. Tables are created with `CREATE TABLE ... AS SELECT`, so column types come from StarRocks' type inference rather than the YAML:
 
@@ -216,7 +219,7 @@ The contract validates the model's query, not the table built from it. Tables ar
 
 > **Note:** To control a column's exact type, `cast` it in the model's `SELECT` (for example `cast(name as varchar(255))`). This does not help with `float`/`double`, which CTAS always stores as `DECIMAL(38, 9)`.
 
-Constraint support:
+Constraint support (only `primary_key` changes the table):
 
 | Constraint type | Support | Behavior |
 |---|---|---|
@@ -225,6 +228,7 @@ Constraint support:
 | `unique` | Not supported | Ignored; table falls back to `DUPLICATE KEY` |
 | `check` | Not supported | Ignored |
 | `foreign_key` | Not supported | Ignored |
+| `custom` | Not supported | Ignored (no warning is logged) |
 
 > **Note:** `primary_key` is *not enforced* because StarRocks `PRIMARY KEY` tables use last-write-wins deduplication: a duplicate key replaces the existing row instead of failing the build. Primary key columns are always `NOT NULL`.
 
