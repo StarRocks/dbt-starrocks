@@ -27,7 +27,7 @@ services:
     networks:
       iceberg_net:
         aliases:
-          - iceberg-rest.minio
+          - iceberg-rest.s3
     ports:
       - 8181:8181
     environment:
@@ -36,29 +36,36 @@ services:
       - AWS_REGION=us-east-1
       - CATALOG_WAREHOUSE=s3://warehouse/
       - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
-      - CATALOG_S3_ENDPOINT=http://minio:9000
+      - CATALOG_S3_ENDPOINT=http://s3:9000
+      - CATALOG_S3_PATH__STYLE__ACCESS=true
 
-  minio:
-    image: quay.io/minio/minio:RELEASE.2024-10-29T16-01-48Z
-    container_name: minio
-    environment:
-      - MINIO_ROOT_USER=admin
-      - MINIO_ROOT_PASSWORD=password
-      - MINIO_DOMAIN=minio
+  s3:
+    image: chrislusf/seaweedfs:4.47
+    container_name: s3
     networks:
       iceberg_net:
         aliases:
-          - warehouse.minio
+          - warehouse.s3
     ports:
-      - 9001:9001
       - 9000:9000
-    command: ["server", "/data", "--console-address", ":9001"]
+    # All-in-one SeaweedFS with its S3 gateway on 9000. The AWS_* variables
+    # create the admin identity that the other services sign requests with.
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+    command: ["server", "-dir=/data", "-s3", "-s3.port=9000", "-s3.domainName=s3"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9000/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
-  mc:
+  create-bucket:
     depends_on:
-      - minio
-    image: quay.io/minio/mc:RELEASE.2024-10-29T15-34-59Z
-    container_name: mc
+      s3:
+        condition: service_healthy
+    image: amazon/aws-cli:2.37.4
+    container_name: create-bucket
     networks:
       iceberg_net:
     environment:
@@ -67,10 +74,7 @@ services:
       - AWS_REGION=us-east-1
     entrypoint: >
       /bin/sh -c "
-      until (/usr/bin/mc config host add minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
-      /usr/bin/mc rm -r --force minio/warehouse;
-      /usr/bin/mc mb minio/warehouse;
-      /usr/bin/mc policy set public minio/warehouse;
+      until aws --endpoint-url http://s3:9000 s3 mb s3://warehouse; do echo '...waiting...' && sleep 1; done;
       tail -f /dev/null
       "
 

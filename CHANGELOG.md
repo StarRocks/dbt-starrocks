@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `primary_key` constraints (column- or model-level) on contracted models automatically derive a `PRIMARY KEY` table type and key columns
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
 
+### Fixed
+- `incremental` models in an external catalog build in the model's resolved schema, as `table`
+  models do. With no `database` config they used the profile's schema, so a custom schema
+  (`+schema` or `generate_schema_name`) was ignored while dbt reported the resolved one, and
+  anything that refs the model looked in the wrong schema (#132).
+
 ## [1.12.2] - 2026-09-15
 
 ### Fixed

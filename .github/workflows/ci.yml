@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
-        starrocks-version: ['3.5.14', '4.0-latest', '4.1.0-rc01']
+        starrocks-version: ['3.5-latest', '4.0-latest', '4.1-latest']
 
     steps:
       - name: Checkout code
@@ -54,7 +54,7 @@ jobs:
               'iceberg.catalog.warehouse'='warehouse',
               'aws.s3.access_key'='admin',
               'aws.s3.secret_key'='password',
-              'aws.s3.endpoint'='http://minio:9000',
+              'aws.s3.endpoint'='http://s3:9000',
               'aws.s3.enable_path_style_access'='true'
             );"
 

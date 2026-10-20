@@ -144,7 +144,7 @@
   {% endif %}
 
   {# 6. SET PROPERTIES #}
-  {% if properties is not none %}
+  {% if properties %}
     PROPERTIES (
       {% for key, value in properties.items() -%}
         "{{ key }}" = "{{ value }}"
@@ -160,7 +160,7 @@
   {% set properties = config.get('properties') %}
 
   ENGINE = {{ engine }}
-  {% if properties is not none %}
+  {% if properties %}
     PROPERTIES (
       {% for key, value in properties.items() %}
         "{{ key }}" = "{{ value }}"{% if not loop.last %},{% endif %}
@@ -206,7 +206,7 @@
     {{ starrocks__partition_by(partition_type, partition_by, partition_by_init) }}
   {% endif %}
 
-  {% if properties is not none %}
+  {% if properties %}
     PROPERTIES (
       {% for key, value in properties.items() %}
         "{{ key }}" = "{{ value }}"{% if not loop.last %},{% endif %}

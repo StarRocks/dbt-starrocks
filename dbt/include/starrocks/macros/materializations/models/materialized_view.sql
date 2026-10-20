@@ -40,7 +40,7 @@
       {{ exceptions.raise_compiler_error(msg) }}
     {% endif -%}
     refresh {{ refresh_method }}
-    {% if properties is not none %}
+    {% if properties %}
     PROPERTIES (
       {% for key, value in properties.items() %}
         "{{ key }}" = "{{ value }}"{% if not loop.last %},{% endif %}
