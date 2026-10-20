@@ -14,19 +14,11 @@
  * limitations under the License.
  */
 
-{% macro starrocks__olap_table(is_create_table_as) -%}
-
-  {%- set is_create_table = is_create_table_as is none or not is_create_table_as -%}
-
+{# Resolve the table type and key columns from config, the incremental unique_key, and
+   enforced-contract primary_key constraints. Returns {'table_type': ..., 'keys': ...}. #}
+{% macro starrocks__table_type_and_keys() -%}
   {%- set table_type = config.get('table_type', 'DUPLICATE') | upper -%}
   {%- set keys = config.get('keys') -%}
-  {%- set partition_by = config.get('partition_by') -%}
-  {%- set partition_by_init = config.get('partition_by_init') -%}
-  {%- set order_by = config.get('order_by') -%}
-  {%- set partition_type = config.get('partition_type', 'RANGE') -%}
-  {%- set buckets = config.get('buckets') -%}
-  {%- set distributed_by = config.get('distributed_by') -%}
-  {%- set properties = config.get('properties') -%}
   {%- set materialized = config.get('materialized', none) -%}
   {%- set unique_key = config.get('unique_key', none) -%}
 
@@ -35,9 +27,12 @@
     {%- set keys = unique_key if unique_key is sequence and unique_key is not mapping and unique_key is not string else [unique_key] -%}
   {%- endif -%}
 
-  {# Derive table type from model contract constraints when no explicit table_type/keys configured #}
+  {# Derive keys from model contract constraints when no explicit keys are configured and
+     table_type is either unset or explicitly PRIMARY (any other explicit table_type wins) #}
   {%- set contract_config = config.get('contract') -%}
-  {%- if contract_config and contract_config.enforced and keys is none and config.get('table_type') is none -%}
+  {%- set explicit_table_type = config.get('table_type') -%}
+  {%- set table_type_allows_pk = explicit_table_type is none or (explicit_table_type | upper) == 'PRIMARY' -%}
+  {%- if contract_config and contract_config.enforced and keys is none and table_type_allows_pk -%}
     {%- set ns = namespace(table_type=table_type, keys=none) -%}
 
     {# Model-level constraints take priority #}
@@ -65,6 +60,24 @@
     {%- set table_type = ns.table_type -%}
     {%- set keys = ns.keys -%}
   {%- endif -%}
+
+  {{ return({'table_type': table_type, 'keys': keys}) }}
+{%- endmacro %}
+
+{% macro starrocks__olap_table(is_create_table_as) -%}
+
+  {%- set is_create_table = is_create_table_as is none or not is_create_table_as -%}
+
+  {%- set table_type_and_keys = starrocks__table_type_and_keys() -%}
+  {%- set table_type = table_type_and_keys['table_type'] -%}
+  {%- set keys = table_type_and_keys['keys'] -%}
+  {%- set partition_by = config.get('partition_by') -%}
+  {%- set partition_by_init = config.get('partition_by_init') -%}
+  {%- set order_by = config.get('order_by') -%}
+  {%- set partition_type = config.get('partition_type', 'RANGE') -%}
+  {%- set buckets = config.get('buckets') -%}
+  {%- set distributed_by = config.get('distributed_by') -%}
+  {%- set properties = config.get('properties') -%}
 
   {# 1. SET ENGINE #}
   {%- if is_create_table %} ENGINE = OLAP {% endif -%}

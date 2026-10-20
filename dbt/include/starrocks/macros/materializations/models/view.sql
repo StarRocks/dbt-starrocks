@@ -20,6 +20,12 @@
 
   {{ sql_header if sql_header is not none }}
 
+  {#- Fails the build if the query's columns or types differ from an enforced contract -#}
+  {%- set contract_config = config.get('contract') -%}
+  {%- if contract_config and contract_config.enforced -%}
+    {{ get_assert_columns_equivalent(sql) }}
+  {%- endif -%}
+
   {%- if on_view_exists == 'replace' -%}
     create or replace view {{ relation }} as {{ sql }};
   {%- else -%}

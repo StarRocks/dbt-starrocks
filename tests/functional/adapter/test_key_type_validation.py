@@ -1,3 +1,4 @@
+import os
 import pytest
 
 from dbt.tests.util import run_dbt
@@ -32,8 +33,8 @@ def dbt_profile_target():
         'type': 'starrocks',
         'username': 'root',
         'password': '',
-        'port': 9030,
-        'host': 'localhost',
+        'port': int(os.getenv('STARROCKS_PORT', 9030)),
+        'host': os.getenv('STARROCKS_HOST', 'localhost'),
         'is_async': True,
         'async_query_timeout': 10,
     }
