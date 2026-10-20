@@ -9,12 +9,6 @@ id,name
 2,b
 """.lstrip()
 
-null_name_seed_csv = """
-id,name
-1,a
-2,
-""".lstrip()
-
 default_model_sql = """
 {{ config(
     materialized='table',
@@ -140,6 +134,21 @@ class TestColumnLevelUniqueKey(ConstraintTestBase):
         assert "PRIMARY KEY" not in ddl
 
 
+class TestNotNullNotApplied(ConstraintTestBase):
+    """not_null is not supported: CTAS cannot declare NOT NULL, so the column stays nullable."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "model_not_null.sql": default_model_sql,
+            "schema.yml": schema_yml("model_not_null", name_constraints=not_null_column_constraint),
+        }
+
+    def test_not_null_is_not_emitted(self, project):
+        ddl = self.build(project)
+        assert "NOT NULL" not in column_line(ddl, "name")
+
+
 class TestExplicitConfigOverridesConstraints(ConstraintTestBase):
     """Explicit table_type/keys config takes priority over constraints."""
 
@@ -187,28 +196,6 @@ select id, name from {{ ref('source_seed') }}
         assert "PRIMARY KEY" not in ddl
 
 
-class TestExplicitPrimaryTableTypeDerivesKeys(ConstraintTestBase):
-    """Explicit table_type='primary' without keys derives the keys from the primary_key constraint."""
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "model_explicit_primary.sql": """
-{{ config(
-    materialized='table',
-    table_type='primary',
-    distributed_by=['id'],
-) }}
-select id, name from {{ ref('source_seed') }}
-""".lstrip(),
-            "schema.yml": schema_yml("model_explicit_primary", id_constraints=pk_column_constraint),
-        }
-
-    def test_explicit_primary_uses_constraint_keys(self, project):
-        ddl = self.build(project)
-        assert "PRIMARY KEY(`id`)" in ddl
-
-
 class TestContractTypeMismatchFails(ConstraintTestBase):
     """An enforced contract fails the build when a column's type differs from the YAML."""
 
@@ -246,74 +233,8 @@ class TestContractMissingColumnFails(ConstraintTestBase):
         assert "created_at" in log
 
 
-class TestNotNullApplied(ConstraintTestBase):
-    """not_null is rendered into the table definition, even though the source column is nullable."""
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "model_not_null.sql": default_model_sql,
-            "schema.yml": schema_yml("model_not_null", name_constraints=not_null_column_constraint),
-        }
-
-    def test_not_null_is_emitted(self, project):
-        ddl = self.build(project)
-        assert "NOT NULL" in column_line(ddl, "name")
-
-
-class TestNotNullViolationFails(ConstraintTestBase):
-    """A null in a not_null column fails the load instead of building the table."""
-
-    @pytest.fixture(scope="class")
-    def seeds(self):
-        return {"source_seed.csv": null_name_seed_csv}
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "model_not_null_violation.sql": default_model_sql,
-            "schema.yml": schema_yml("model_not_null_violation", name_constraints=not_null_column_constraint),
-        }
-
-    def test_null_fails_build(self, project):
-        run_dbt(["seed"])
-        run_dbt(["run"], expect_pass=False)
-
-
-class TestContractKeepsDeclaredTypes(ConstraintTestBase):
-    """The table is built from the YAML types, not from CTAS type inference."""
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "model_declared_types.sql": """
-{{ config(
-    materialized='table',
-    distributed_by=['id'],
-) }}
-select id, name, cast(id as double) as score, concat(name, 'x') as label
-from {{ ref('source_seed') }}
-""".lstrip(),
-            "schema.yml": schema_yml(
-                "model_declared_types",
-                extra_columns=(
-                    "      - name: score\n        data_type: double\n"
-                    "      - name: label\n        data_type: varchar"
-                ),
-            ),
-        }
-
-    def test_declared_types(self, project):
-        ddl = self.build(project)
-        # CTAS would have produced decimal(38, 9), varchar(65533) and varchar(1048576)
-        assert "double" in column_line(ddl, "score")
-        assert "varchar(255)" in column_line(ddl, "name")
-        # A bare varchar would be VARCHAR(1) in StarRocks; it is rendered unbounded instead
-        assert "varchar(65533)" in column_line(ddl, "label")
-
-
-class TestPrimaryKeyColumnsMovedFirst(ConstraintTestBase):
-    """Key columns are moved to the front of the table, whatever the SELECT and YAML order."""
+class TestPrimaryKeyMustBeSelectedFirst(ConstraintTestBase):
+    """StarRocks requires PRIMARY KEY columns to lead the schema, so the SELECT order matters."""
 
     @pytest.fixture(scope="class")
     def models(self):
@@ -325,30 +246,59 @@ class TestPrimaryKeyColumnsMovedFirst(ConstraintTestBase):
 ) }}
 select name, id from {{ ref('source_seed') }}
 """.lstrip(),
-            "schema.yml": """
-version: 2
-models:
-  - name: model_pk_not_first
-    config:
-      contract:
-        enforced: true
-    columns:
-      - name: name
-        data_type: varchar(255)
-      - name: id
-        data_type: bigint
-        constraints:
-          - type: primary_key
-""".lstrip(),
+            "schema.yml": schema_yml("model_pk_not_first", id_constraints=pk_column_constraint),
         }
 
-    def test_pk_moved_first(self, project):
+    def test_pk_not_first_fails(self, project):
+        run_dbt(["seed"])
+        _, log = run_dbt_and_capture(["run"], expect_pass=False)
+        assert "Key columns must be the first few columns" in log
+
+
+class TestExplicitPrimaryTableTypeDerivesKeys(ConstraintTestBase):
+    """Explicit table_type='primary' without keys derives the keys from the primary_key constraint."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "model_explicit_primary.sql": """
+{{ config(
+    materialized='table',
+    table_type='primary',
+    distributed_by=['id'],
+) }}
+select id, name from {{ ref('source_seed') }}
+""".lstrip(),
+            "schema.yml": schema_yml("model_explicit_primary", id_constraints=pk_column_constraint),
+        }
+
+    def test_explicit_primary_uses_constraint_keys(self, project):
         ddl = self.build(project)
         assert "PRIMARY KEY(`id`)" in ddl
-        assert ddl.index("`id`") < ddl.index("`name`")
-        assert project.run_sql(
-            f"select count(*) from {project.test_schema}.model_pk_not_first", fetch="one"
-        )[0] == 2
+
+
+class TestContractFloatBecomesDecimal(ConstraintTestBase):
+    """The contract checks the query's types, but CTAS stores FLOAT/DOUBLE as DECIMAL(38, 9)."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "model_double.sql": """
+{{ config(
+    materialized='table',
+    distributed_by=['id'],
+) }}
+select id, name, cast(id as double) as score from {{ ref('source_seed') }}
+""".lstrip(),
+            "schema.yml": schema_yml(
+                "model_double",
+                extra_columns="      - name: score\n        data_type: double",
+            ),
+        }
+
+    def test_double_contract_passes_but_column_is_decimal(self, project):
+        ddl = self.build(project)
+        assert "decimal(38, 9)" in column_line(ddl, "score")
 
 
 class TestConstraintWarnings(ConstraintTestBase):
@@ -361,7 +311,7 @@ class TestConstraintWarnings(ConstraintTestBase):
             "schema.yml": schema_yml(
                 "model_warnings",
                 id_constraints=pk_column_constraint,
-                name_constraints=unique_column_constraint,
+                name_constraints=not_null_column_constraint,
             ),
         }
 
@@ -369,40 +319,8 @@ class TestConstraintWarnings(ConstraintTestBase):
         run_dbt(["seed"])
         _, log = run_dbt_and_capture(["run"])
         log = " ".join(log.split())  # dbt wraps warnings across lines
-        assert "constraint type unique is not supported by starrocks" in log
+        assert "constraint type not_null is not supported by starrocks" in log
         assert "constraint type primary_key is not enforced by starrocks" in log
-
-
-class TestIncrementalContract(ConstraintTestBase):
-    """An incremental model is created from its contract, then later runs merge into it."""
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "model_incremental.sql": """
-{{ config(
-    materialized='incremental',
-    on_schema_change='fail',
-    distributed_by=['id'],
-) }}
-select id, name from {{ ref('source_seed') }}
-""".lstrip(),
-            "schema.yml": schema_yml(
-                "model_incremental",
-                id_constraints=pk_column_constraint,
-                name_constraints=not_null_column_constraint,
-            ),
-        }
-
-    def test_incremental_runs(self, project):
-        ddl = self.build(project)
-        assert "PRIMARY KEY(`id`)" in ddl
-        assert "NOT NULL" in column_line(ddl, "name")
-        results = run_dbt(["run"])
-        assert len(results) == 1
-        assert project.run_sql(
-            f"select count(*) from {project.test_schema}.model_incremental", fetch="one"
-        )[0] == 2
 
 
 class TestViewContractMismatchFails(ConstraintTestBase):
@@ -440,59 +358,3 @@ select id, name from {{ ref('source_seed') }}
     def test_view_builds(self, project):
         run_dbt(["seed"])
         assert len(run_dbt(["run"])) == 1
-
-
-class TestContractWithSubmitTask(ConstraintTestBase):
-    """With is_async, the CREATE TABLE runs directly and the INSERT is submitted as a task."""
-
-    @pytest.fixture(scope="class")
-    def dbt_profile_target(self, dbt_profile_target):
-        return {**dbt_profile_target, "is_async": True, "async_query_timeout": 30}
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "model_async.sql": """
-{{ config(
-    materialized='table',
-    distributed_by=['id'],
-) }}
-select id, name, cast(null as datetime) as selected_at from {{ ref('source_seed') }}
-""".lstrip(),
-            "schema.yml": schema_yml(
-                "model_async",
-                id_constraints=pk_column_constraint,
-                name_constraints=not_null_column_constraint,
-                extra_columns="      - name: selected_at\n        data_type: datetime",
-            ),
-        }
-
-    def test_async_build(self, project):
-        ddl = self.build(project)
-        assert "PRIMARY KEY(`id`)" in ddl
-        assert "NOT NULL" in column_line(ddl, "name")
-        assert project.run_sql(
-            f"select count(*) from {project.test_schema}.model_async", fetch="one"
-        )[0] == 2
-
-
-class TestCustomConstraintPassedThrough(ConstraintTestBase):
-    """A custom constraint's expression is added to the column definition as written."""
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "model_custom.sql": default_model_sql,
-            "schema.yml": schema_yml(
-                "model_custom",
-                name_constraints="""
-        constraints:
-          - type: custom
-            expression: "comment 'customer name'"
-""".strip("\n"),
-            ),
-        }
-
-    def test_custom_expression_applied(self, project):
-        ddl = self.build(project)
-        assert "customer name" in column_line(ddl, "name")

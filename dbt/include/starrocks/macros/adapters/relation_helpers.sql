@@ -14,11 +14,19 @@
  * limitations under the License.
  */
 
-{# Resolve the table type and key columns from config, the incremental unique_key, and
-   enforced-contract primary_key constraints. Returns {'table_type': ..., 'keys': ...}. #}
-{% macro starrocks__table_type_and_keys() -%}
+{% macro starrocks__olap_table(is_create_table_as) -%}
+
+  {%- set is_create_table = is_create_table_as is none or not is_create_table_as -%}
+
   {%- set table_type = config.get('table_type', 'DUPLICATE') | upper -%}
   {%- set keys = config.get('keys') -%}
+  {%- set partition_by = config.get('partition_by') -%}
+  {%- set partition_by_init = config.get('partition_by_init') -%}
+  {%- set order_by = config.get('order_by') -%}
+  {%- set partition_type = config.get('partition_type', 'RANGE') -%}
+  {%- set buckets = config.get('buckets') -%}
+  {%- set distributed_by = config.get('distributed_by') -%}
+  {%- set properties = config.get('properties') -%}
   {%- set materialized = config.get('materialized', none) -%}
   {%- set unique_key = config.get('unique_key', none) -%}
 
@@ -60,24 +68,6 @@
     {%- set table_type = ns.table_type -%}
     {%- set keys = ns.keys -%}
   {%- endif -%}
-
-  {{ return({'table_type': table_type, 'keys': keys}) }}
-{%- endmacro %}
-
-{% macro starrocks__olap_table(is_create_table_as) -%}
-
-  {%- set is_create_table = is_create_table_as is none or not is_create_table_as -%}
-
-  {%- set table_type_and_keys = starrocks__table_type_and_keys() -%}
-  {%- set table_type = table_type_and_keys['table_type'] -%}
-  {%- set keys = table_type_and_keys['keys'] -%}
-  {%- set partition_by = config.get('partition_by') -%}
-  {%- set partition_by_init = config.get('partition_by_init') -%}
-  {%- set order_by = config.get('order_by') -%}
-  {%- set partition_type = config.get('partition_type', 'RANGE') -%}
-  {%- set buckets = config.get('buckets') -%}
-  {%- set distributed_by = config.get('distributed_by') -%}
-  {%- set properties = config.get('properties') -%}
 
   {# 1. SET ENGINE #}
   {%- if is_create_table %} ENGINE = OLAP {% endif -%}

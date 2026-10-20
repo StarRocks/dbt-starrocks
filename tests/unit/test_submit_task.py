@@ -39,17 +39,6 @@ class TestDBTLikeIsSubmittableETL:
                 """,
                 True
             ),
-            (
-                """
-                create table `my_db`.`my_table` (
-                    id bigint not null,
-                    selected_at datetime
-                )
-                ENGINE = OLAP
-                DISTRIBUTED BY HASH (id)
-                """,
-                False
-            ),
         ]
     )
     def test_is_submittable_etl_suitable(self, sql, expected):

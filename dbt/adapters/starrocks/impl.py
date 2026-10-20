@@ -16,14 +16,14 @@ import re
 import time
 import uuid
 from concurrent.futures import Future
-from typing import Any, Callable, Dict, List, Optional, Set, FrozenSet, Tuple
+from typing import Callable, Dict, List, Optional, Set, FrozenSet, Tuple
 from typing_extensions import TypeAlias
 
 import agate
 import dbt.exceptions
 from dbt.adapters.base import available
 from dbt.adapters.base.impl import _expect_row_value, catch_as_completed, ConstraintSupport
-from dbt_common.contracts.constraints import ColumnLevelConstraint, ConstraintType, ModelLevelConstraint
+from dbt_common.contracts.constraints import ConstraintType
 from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.events.logging import AdapterLogger
@@ -65,46 +65,18 @@ class StarRocksAdapter(SQLAdapter):
     AdapterSpecificConfigs = StarRocksConfig
     Column = StarRocksColumn
 
-    # Contracted OLAP tables are created from their YAML columns and then loaded with
-    # INSERT, so not_null is rendered into the DDL and enforced by the load. primary_key is
-    # applied via the table key type in starrocks__olap_table; it is NOT_ENFORCED because
-    # PRIMARY KEY tables upsert duplicates rather than reject them.
+    # Tables are built with CTAS, whose column list cannot carry NOT NULL, so not_null
+    # is unsupported. primary_key is applied via the table key type in starrocks__olap_table;
+    # it is NOT_ENFORCED because PRIMARY KEY tables upsert duplicates rather than reject them.
     CONSTRAINT_SUPPORT = {
         ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
-        ConstraintType.not_null: ConstraintSupport.ENFORCED,
+        ConstraintType.not_null: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.primary_key: ConstraintSupport.NOT_ENFORCED,
         ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
     }
 
     _running_tasks: Dict[str, str] = {}
-
-    @classmethod
-    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List[str]:
-        # A bare VARCHAR in a column definition is VARCHAR(1) in StarRocks, which would reject
-        # nearly every value. The contract compares base types only, so treat it as unbounded.
-        normalized = {
-            name: {**column, "data_type": "varchar(65533)"}
-            if (column.get("data_type") or "").strip().lower() == "varchar"
-            else column
-            for name, column in raw_columns.items()
-        }
-        return super().render_raw_columns_constraints(normalized)
-
-    @classmethod
-    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
-        # primary_key becomes the table's PRIMARY KEY clause (starrocks__olap_table), not inline DDL
-        if constraint.type == ConstraintType.primary_key:
-            return None
-        if constraint.type == ConstraintType.not_null:
-            return "not null"
-        return super().render_column_constraint(constraint)
-
-    @classmethod
-    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
-        if constraint.type == ConstraintType.primary_key:
-            return None
-        return super().render_model_constraint(constraint)
 
     @staticmethod
     def _compute_poll_delay(attempt: int, poll_interval: int = 1, poll_factor: float = 2.0, poll_max_delay: int = 600) -> float:
@@ -144,7 +116,7 @@ class StarRocksAdapter(SQLAdapter):
         # The goal here is to soft-match the ETL patterns for dbt-generated sql queries.
         # It is not intended to be exhaustive nor to validate SQL statement, this will be left to the engine.
         suitable_etl_patterns = [
-            r'^create\s+table\b.*\bselect\b',
+            r'^create\s+table.*select',
             r'^insert\s+(into|overwrite)\b',
             r'^cache\s+select\b'
         ]

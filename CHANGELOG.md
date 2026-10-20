@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Model contract enforcement: with `contract.enforced: true`, table, incremental and view builds fail when the model's columns or data types differ from the YAML definition
-- Contracted tables are created from their YAML column definitions and loaded with `INSERT`, so they get the declared types, and `not_null` constraints are enforced
-- dbt's warnings for unsupported and unenforced constraints
+- dbt's warnings for unsupported and unenforced constraints on contracted tables
 - `primary_key` constraints (column- or model-level) on contracted models automatically derive a `PRIMARY KEY` table type and key columns
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
 
