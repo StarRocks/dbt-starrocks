@@ -15,6 +15,10 @@
  */
 
 {% macro starrocks__get_columns_in_relation(relation) -%}
+  {#-- An unqualified `information_schema` resolves in the session's current catalog, so a
+       relation in an external catalog needs it named explicitly or no columns come back. --#}
+  {%- set catalog = starrocks__external_catalog(relation.database) -%}
+  {%- set information_schema = ('`' ~ catalog ~ '`.information_schema') if catalog is not none else 'INFORMATION_SCHEMA' -%}
   {% call statement('get_columns_in_relation', fetch_result=True) %}
     select
         column_name,
@@ -23,7 +27,7 @@
         numeric_precision,
         numeric_scale
 
-    from INFORMATION_SCHEMA.columns
+    from {{ information_schema }}.columns
     where table_name = '{{ relation.identifier }}'
       {% if relation.schema %}
       and table_schema = '{{ relation.schema }}'
@@ -35,7 +39,7 @@
   
   {% if table.rows %}
     {% call statement('desc_columns_in_relation', fetch_result=True) %}
-      desc `{{ relation.schema }}`.`{{ relation.identifier }}`
+      desc {{ relation }}
     {% endcall %}
     {% set desc_table = load_result('desc_columns_in_relation').table %}
     {{ return(starrocks__sql_convert_columns_in_relation(relation, table, desc_table)) }}

@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `primary_key` constraints (column- or model-level) on contracted models automatically derive a `PRIMARY KEY` table type and key columns
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
 
+## [1.12.2] - 2026-09-15
+
+### Fixed
+- Relations in external catalogs are now discoverable, so `incremental` and `table` models
+  targeting an Iceberg/Hive catalog no longer fail on every run after the first with
+  `Table '<name>' already exists`. `starrocks__list_relations_without_caching` and
+  `starrocks__get_columns_in_relation` qualify `information_schema` with the catalog and
+  report it back as the relation's `database`, and `get_relation` keeps that component
+  instead of dropping it.
+- `incremental` models in an external catalog look their target up by catalog rather than
+  through `this`, which always addresses `default_catalog`.
+- `--full-refresh` on an external-catalog `incremental` model drops and recreates the table
+  instead of using `ALTER TABLE ... SWAP WITH`, which external catalogs do not support.
+
+## [1.12.1] - 2026-08-07
+
+### Added
+- Python 3.14 support: raise the `python_requires` cap to `<3.15`, add 3.14 to the CI matrix, and require `dbt-core>=1.12` on Python 3.14 (older dbt-core pins `mashumaro<3.15`, which fails at import time on 3.14)
+
+### Changed
+- Bump pinned `dbt-core` in `dev_requirements.txt` to 1.12.0
+
 ## [1.12.0] - 2026-06-10
 
 ### Added
