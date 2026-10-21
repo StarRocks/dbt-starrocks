@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
 
 ### Fixed
+- `_parse_version` now parses multi-digit version parts correctly (e.g. `3.5.14`, `4.0.10`) instead of reading single characters
+- `is_before_version` and `current_version` read the StarRocks version from `select current_version()`, stored on the connection as `starrocks_version`, instead of `handle.server_version`.
 - `incremental` models in an external catalog build in the model's resolved schema, as `table`
   models do. With no `database` config they used the profile's schema, so a custom schema
   (`+schema` or `generate_schema_name`) was ignored while dbt reported the resolved one, and
