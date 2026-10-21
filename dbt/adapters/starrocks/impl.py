@@ -22,7 +22,8 @@ from typing_extensions import TypeAlias
 import agate
 import dbt.exceptions
 from dbt.adapters.base import available
-from dbt.adapters.base.impl import _expect_row_value, catch_as_completed
+from dbt.adapters.base.impl import _expect_row_value, catch_as_completed, ConstraintSupport
+from dbt_common.contracts.constraints import ConstraintType
 from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.events.logging import AdapterLogger
@@ -78,7 +79,18 @@ class StarRocksAdapter(SQLAdapter):
     Relation = StarRocksRelation
     AdapterSpecificConfigs = StarRocksConfig
     Column = StarRocksColumn
-    
+
+    # Tables are built with CTAS, whose column list cannot carry NOT NULL, so not_null
+    # is unsupported. primary_key is applied via the table key type in starrocks__olap_table;
+    # it is NOT_ENFORCED because PRIMARY KEY tables upsert duplicates rather than reject them.
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.not_null: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_ENFORCED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
+    }
+
     _running_tasks: Dict[str, str] = {}
 
     @staticmethod

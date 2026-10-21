@@ -22,6 +22,16 @@
 
   {{ sql_header if sql_header is not none }}
 
+  {#- Fails the build if the query's columns or types differ from an enforced contract -#}
+  {%- set contract_config = config.get('contract') -%}
+  {%- if contract_config and contract_config.enforced -%}
+    {{ get_assert_columns_equivalent(sql) }}
+    {#- CTAS cannot carry column definitions, so the rendered constraints are discarded;
+        rendering them emits dbt's warnings for unsupported and unenforced constraints -#}
+    {%- do adapter.render_raw_columns_constraints(raw_columns=model['columns']) -%}
+    {%- do adapter.render_raw_model_constraints(raw_constraints=model['constraints']) -%}
+  {%- endif -%}
+
   create table {{ relation.include(database=False) }}
   {%- if indexs is not none %} (
     {%- for index in indexs %}

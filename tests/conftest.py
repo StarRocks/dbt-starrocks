@@ -15,8 +15,8 @@ def dbt_profile_target():
 #        'server': 'localhost',
         'username': 'root',
         'password': '',
-        'port': 9030,
-        'host': 'localhost',
+        'port': int(os.getenv('STARROCKS_PORT', 9030)),
+        'host': os.getenv('STARROCKS_HOST', 'localhost'),
 #        'version': '3.0',
 #        'schema': 'dbt',
 #        'ssl_disabled': True

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Model contract enforcement: with `contract.enforced: true`, table, incremental and view builds fail when the model's columns or data types differ from the YAML definition
+- dbt's warnings for unsupported and unenforced constraints on contracted tables
+- `primary_key` constraints (column- or model-level) on contracted models automatically derive a `PRIMARY KEY` table type and key columns
+- `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
+
 ### Fixed
 - `incremental` models in an external catalog build in the model's resolved schema, as `table`
   models do. With no `database` config they used the profile's schema, so a custom schema
