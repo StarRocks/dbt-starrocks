@@ -358,3 +358,65 @@ select id, name from {{ ref('source_seed') }}
     def test_view_builds(self, project):
         run_dbt(["seed"])
         assert len(run_dbt(["run"])) == 1
+
+
+updated_seed_csv = """
+id,name
+2,B
+3,c
+""".lstrip()
+
+incremental_model_sql = """
+{{{{ config(
+    materialized='incremental',
+    incremental_strategy='{strategy}',
+    on_schema_change='fail',
+    distributed_by=['id'],
+) }}}}
+select id, name from {{{{ ref(var('seed_name', 'source_seed')) }}}}
+""".lstrip()
+
+
+class TestMergeWithContractPrimaryKey:
+    """A contract primary_key builds a PRIMARY KEY table, so 'merge' accepts it without
+    unique_key or keys and upserts on the contract's key."""
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"source_seed.csv": source_seed_csv, "updated_seed.csv": updated_seed_csv}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "merge_contract.sql": incremental_model_sql.format(strategy="merge"),
+            "schema.yml": schema_yml("merge_contract", id_constraints=pk_column_constraint),
+        }
+
+    def test_merge_upserts_on_contract_key(self, project):
+        run_dbt(["seed"])
+        run_dbt(["run"])
+        run_dbt(["run", "--vars", "seed_name: updated_seed"])
+        relation = f"{project.test_schema}.merge_contract"
+        rows = project.run_sql(f"select id, name from {relation} order by id", fetch="all")
+        assert rows == [(1, "a"), (2, "B"), (3, "c")]
+
+
+class TestAppendRejectsContractPrimaryKey:
+    """A contract primary_key builds a PRIMARY KEY table, where an INSERT upserts, so 'append'
+    is refused up front."""
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"source_seed.csv": source_seed_csv}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "append_contract.sql": incremental_model_sql.format(strategy="append"),
+            "schema.yml": schema_yml("append_contract", id_constraints=pk_column_constraint),
+        }
+
+    def test_append_refused(self, project):
+        run_dbt(["seed"])
+        results = run_dbt(["run"], expect_pass=False)
+        assert "requires a DUPLICATE KEY table" in results[0].message

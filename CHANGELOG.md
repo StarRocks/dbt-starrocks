@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - dbt's warnings for unsupported and unenforced constraints on contracted tables
 - `primary_key` constraints (column- or model-level) on contracted models automatically derive a `PRIMARY KEY` table type and key columns
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
+- `append` and `merge` incremental strategies. `append` is the explicit name for a plain
+  `INSERT INTO` into a DUPLICATE KEY table. `merge` upserts into a PRIMARY KEY table, built
+  from `unique_key`, from `table_type='PRIMARY'` with `keys`, or from a contract
+  `primary_key` constraint; an existing UNIQUE KEY table is accepted too. Neither is
+  supported in a configuration where the name would be misleading: `append` fails on a
+  PRIMARY or UNIQUE KEY table, where the insert would upsert, and `merge` fails on any other
+  table type and in external catalogs. `merge` raises on `merge_update_columns`,
+  `merge_exclude_columns` and `incremental_predicates`, which need a `MERGE` statement.
+- `append` and `merge` check the existing table's key type on each incremental run, so a
+  table built before its key config changed fails with a pointer to `--full-refresh`
+  instead of silently appending or upserting.
+
+### Changed
+- `incremental_strategy='default'`, which is also used when `incremental_strategy` is not
+  set, will be deprecated in a future release. It is still fully supported; each run now
+  logs an info-level notice. Its effect depends on the table type (it upserts into PRIMARY
+  KEY tables and appends to DUPLICATE KEY tables), so prefer `merge` or `append`, which
+  run the same SQL.
 
 ### Fixed
 - `incremental` models in an external catalog build in the model's resolved schema, as `table`
