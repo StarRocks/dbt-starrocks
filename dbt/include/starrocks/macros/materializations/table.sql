@@ -48,12 +48,32 @@
     {%- set existing_relation = load_cached_relation(this) -%}
   {%- endif -%}
   
+  {%- if on_table_exists == 'swap' and is_external -%}
+    {%- set msg -%}
+      on_table_exists='swap' is only supported for tables in default_catalog: external catalogs have no ALTER TABLE ... SWAP WITH
+    {%- endset %}
+    {{ exceptions.raise_compiler_error(msg) }}
+  {%- endif -%}
+
   {%- set sql = model['compiled_code'] -%}
-  
+
   {{ run_hooks(pre_hooks) }}
-  
+
+  {%- if existing_relation is not none and existing_relation.is_table and on_table_exists == 'swap' -%}
+    {%- set tmp_relation = make_temp_relation(target_relation).incorporate(type='table') -%}
+    {{ log("Building " ~ tmp_relation ~ " and swapping it with " ~ target_relation, info=True) }}
+    {{ adapter.drop_relation(tmp_relation) }}
+    {% call statement('main') -%}
+      {{ starrocks__create_table_as(false, tmp_relation, sql) }}
+    {%- endcall %}
+    {{ starrocks__exchange_relation(target_relation, tmp_relation) }}
+    {{ adapter.drop_relation(tmp_relation) }}
+    {{ run_hooks(post_hooks) }}
+    {{ return({'relations': [target_relation]}) }}
+  {%- endif -%}
+
   {%- if existing_relation is not none -%}
-    {%- if should_full_refresh() or on_table_exists == 'replace' -%}
+    {%- if should_full_refresh() or on_table_exists in ('replace', 'swap') -%}
       {{ log("Dropping and recreating table", info=True) }}
       {{ adapter.drop_relation(existing_relation) }}
       {%- set existing_relation = none -%}
@@ -71,7 +91,7 @@
     {%- else -%}
       {%- set msg -%}
         Unknown on_table_exists strategy: '{{ on_table_exists }}'.
-        Valid options: 'replace', 'append', 'ignore'
+        Valid options: 'replace', 'swap', 'append', 'ignore'
       {%- endset %}
       {{ exceptions.raise_compiler_error(msg) }}
     {%- endif -%}

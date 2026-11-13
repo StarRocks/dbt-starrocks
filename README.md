@@ -110,6 +110,7 @@ models:
   properties: {"replication_num":"1", "in_memory": "true"}
   refresh_method: 'async'               // only for materialized view default manual
   on_view_exists: 'replace'             // only for view: use CREATE OR REPLACE VIEW instead of DROP + CREATE
+  on_table_exists: 'swap'               // only for table: build <name>__dbt_tmp and ALTER TABLE ... SWAP WITH it, instead of DROP + CREATE. Supported values: ['replace' (default), 'swap', 'append', 'ignore']
 
   // For 'materialized=incremental' in version >= 3.4
   incremental_strategy: 'dynamic_overwrite' // Supported values: ['default', 'insert_overwrite', 'dynamic_overwrite']
@@ -128,6 +129,7 @@ models:
 {{ config(materialized='view') }}
 {{ config(materialized='view', on_view_exists='replace') }}
 {{ config(materialized='table', engine='OLAP', buckets=32, distributed_by=['id']) }}
+{{ config(materialized='table', on_table_exists='swap') }}
 {{ config(materialized='table', indexs=[{ 'columns': 'idx_column' }]) }}
 {{ config(materialized='table', partition_by=['date_trunc("day", first_order)'], partition_type='Expr') }}
 {{ config(materialized='table', table_type='PRIMARY', keys=['customer_id'], order_by=['first_name', 'last_name'] }}
