@@ -53,6 +53,9 @@ class StarRocksCredentials(Credentials):
     poll_factor: Optional[float] = 2.0
     auth_plugin: Optional[str] = ''
     openid_token_file: Optional[str] = None
+    ssl_ca: Optional[str] = None
+    ssl_verify_cert: Optional[bool] = None
+    ssl_verify_identity: Optional[bool] = None
     
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -97,6 +100,9 @@ class StarRocksCredentials(Credentials):
             "poll_factor",
             "auth_plugin",
             "openid_token_file",
+            "ssl_ca",
+            "ssl_verify_cert",
+            "ssl_verify_identity",
         )
 
 
@@ -172,6 +178,15 @@ class StarRocksConnectionManager(SQLConnectionManager):
         # authentication_openid_connect_client plugin from this file.
         if credentials.openid_token_file:
             kwargs["openid_token_file"] = credentials.openid_token_file
+
+        # Unset, mysql-connector-python encrypts but does not verify the FE's
+        # certificate. Profiles that send a bearer token can opt in here.
+        if credentials.ssl_ca:
+            kwargs["ssl_ca"] = credentials.ssl_ca
+        for option in ("ssl_verify_cert", "ssl_verify_identity"):
+            value = getattr(credentials, option)
+            if value is not None:
+                kwargs[option] = value
 
         if credentials.port:
             kwargs["port"] = credentials.port

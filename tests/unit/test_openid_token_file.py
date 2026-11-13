@@ -58,3 +58,21 @@ def test_openid_token_file_is_passed_on_the_create_database_retry(monkeypatch):
 def test_openid_token_file_is_omitted_when_unset(monkeypatch):
     (kwargs,) = _open(monkeypatch)
     assert "openid_token_file" not in kwargs
+
+
+def test_ssl_options_are_passed_when_set(monkeypatch):
+    (kwargs,) = _open(
+        monkeypatch,
+        ssl_ca="/etc/ssl/certs/ca-certificates.crt",
+        ssl_verify_cert=True,
+        ssl_verify_identity=False,
+        **OIDC,
+    )
+    assert kwargs["ssl_ca"] == "/etc/ssl/certs/ca-certificates.crt"
+    assert kwargs["ssl_verify_cert"] is True
+    assert kwargs["ssl_verify_identity"] is False
+
+
+def test_ssl_options_are_omitted_when_unset(monkeypatch):
+    (kwargs,) = _open(monkeypatch, **OIDC)
+    assert not {"ssl_ca", "ssl_verify_cert", "ssl_verify_identity"} & kwargs.keys()

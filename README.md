@@ -86,16 +86,21 @@ starrocks:
 | poll_factor         | Growth multiplier for exponential backoff between polls            | Optional  | `2.0`                          |
 | auth_plugin         | MySQL client authentication plugin to use                          | Optional  | `authentication_openid_connect_client` |
 | openid_token_file   | Path to a file holding an OpenID Connect ID token, read by the `authentication_openid_connect_client` plugin | Optional  | `/tmp/starrocks.jwt` |
+| ssl_ca              | CA bundle to trust for the FE's certificate, on top of the system store | Optional  | `/path/to/private-ca.pem`      |
+| ssl_verify_cert     | Verify the FE's certificate chain                                  | Optional  | `true`                         |
+| ssl_verify_identity | Also check that the certificate matches `host`                     | Optional  | `true`                         |
 
 To log in with an OpenID Connect ID token through a StarRocks JWT security integration, set `auth_plugin` to `authentication_openid_connect_client` and point `openid_token_file` at a file holding the token. This needs mysql-connector-python 9.1 or later. `password` is not used.
 
-The plugin refuses to send the token over a plaintext connection, so the FE needs SSL enabled. The adapter passes no `ssl_*` options, so mysql-connector-python does not verify the FE's certificate. With `threads` above 1, set `use_pure: "true"`: concurrent logins through the C extension's plugin crashed dbt in our testing (`malloc(): unaligned tcache chunk detected`), and the pure-Python plugin did not.
+The plugin refuses to send the token over a plaintext connection, so the FE needs SSL enabled. Without `ssl_verify_cert`, mysql-connector-python encrypts the connection but does not verify the FE's certificate, so anyone who can impersonate the FE can capture and replay the token. Set `ssl_verify_cert: true`, and `ssl_verify_identity: true` when `host` matches a name on the certificate. With `use_pure`, the connector always trusts the system CA store and `ssl_ca` adds a private CA to it. With `threads` above 1, set `use_pure: "true"`: concurrent logins through the C extension's plugin crashed dbt in our testing (`malloc(): unaligned tcache chunk detected`), and the pure-Python plugin did not.
 
 ```yaml
       username: your_starrocks_username
       password: ''
       auth_plugin: authentication_openid_connect_client
       openid_token_file: /path/to/id_token.jwt
+      ssl_verify_cert: true
+      ssl_verify_identity: true
       use_pure: "true"
 ```
 
