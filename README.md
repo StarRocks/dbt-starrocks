@@ -84,6 +84,17 @@ starrocks:
 | poll_interval       | Base delay in seconds between task status polls                    | Optional  | `1`                            |
 | poll_max_delay      | Maximum delay cap in seconds for task polling                      | Optional  | `600`                          |
 | poll_factor         | Growth multiplier for exponential backoff between polls            | Optional  | `2.0`                          |
+| auth_plugin         | MySQL client authentication plugin to use                          | Optional  | `authentication_openid_connect_client` |
+| openid_token_file   | Path to a file holding an OpenID Connect ID token, read by the `authentication_openid_connect_client` plugin | Optional  | `/tmp/starrocks.jwt` |
+
+To log in with an OpenID Connect ID token through a StarRocks security integration (`authentication_jwt`), set `auth_plugin` to `authentication_openid_connect_client` and point `openid_token_file` at a file holding the token. The plugin sends the token only over TLS, so the FE needs SSL enabled. `password` is not used.
+
+```yaml
+      username: your_starrocks_username
+      password: ''
+      auth_plugin: authentication_openid_connect_client
+      openid_token_file: /path/to/id_token.jwt
+```
 
 More details about setting `use_pure` and other connection arguments [here](https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html)
 

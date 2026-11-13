@@ -52,6 +52,7 @@ class StarRocksCredentials(Credentials):
     poll_max_delay: Optional[int] = 600
     poll_factor: Optional[float] = 2.0
     auth_plugin: Optional[str] = ''
+    openid_token_file: Optional[str] = None
     
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -95,6 +96,7 @@ class StarRocksCredentials(Credentials):
             "poll_max_delay",
             "poll_factor",
             "auth_plugin",
+            "openid_token_file",
         )
 
 
@@ -165,6 +167,11 @@ class StarRocksConnectionManager(SQLConnectionManager):
                   "password": credentials.password, "database": credentials.catalog + "." + credentials.schema, "auth_plugin":credentials.auth_plugin}
 
         kwargs["buffered"] = True
+
+        # mysql-connector-python reads the ID token for its
+        # authentication_openid_connect_client plugin from this file.
+        if credentials.openid_token_file:
+            kwargs["openid_token_file"] = credentials.openid_token_file
 
         if credentials.port:
             kwargs["port"] = credentials.port
