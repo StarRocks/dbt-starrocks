@@ -87,13 +87,16 @@ starrocks:
 | auth_plugin         | MySQL client authentication plugin to use                          | Optional  | `authentication_openid_connect_client` |
 | openid_token_file   | Path to a file holding an OpenID Connect ID token, read by the `authentication_openid_connect_client` plugin | Optional  | `/tmp/starrocks.jwt` |
 
-To log in with an OpenID Connect ID token through a StarRocks security integration (`authentication_jwt`), set `auth_plugin` to `authentication_openid_connect_client` and point `openid_token_file` at a file holding the token. The plugin sends the token only over TLS, so the FE needs SSL enabled. `password` is not used.
+To log in with an OpenID Connect ID token through a StarRocks JWT security integration, set `auth_plugin` to `authentication_openid_connect_client` and point `openid_token_file` at a file holding the token. This needs mysql-connector-python 9.1 or later. `password` is not used.
+
+The plugin refuses to send the token over a plaintext connection, so the FE needs SSL enabled. The adapter passes no `ssl_*` options, so mysql-connector-python does not verify the FE's certificate. With `threads` above 1, set `use_pure: "true"`: concurrent logins through the C extension's plugin crashed dbt in our testing (`malloc(): unaligned tcache chunk detected`), and the pure-Python plugin did not.
 
 ```yaml
       username: your_starrocks_username
       password: ''
       auth_plugin: authentication_openid_connect_client
       openid_token_file: /path/to/id_token.jwt
+      use_pure: "true"
 ```
 
 More details about setting `use_pure` and other connection arguments [here](https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html)
