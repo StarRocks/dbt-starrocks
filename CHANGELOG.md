@@ -13,7 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `primary_key` constraints (column- or model-level) on contracted models automatically derive a `PRIMARY KEY` table type and key columns
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
 
+### Changed
+- Version-gated configs now fail at compile time on StarRocks versions that don't support
+  them, as intended: `dynamic_overwrite` before 3.4, a table or materialized view without
+  `distributed_by` before 3.1, and `distributed_by` without `buckets` before 2.5.7.
+  Previously these checks never fired (see below), so such models reached StarRocks and
+  failed there with a database error.
+
 ### Fixed
+- StarRocks version detection with mysql-connector-python 9.3.0 and later, where
+  `server_version` is a read-only property. `is_before_version` and `current_version` read
+  the version from `select current_version()`, stored on the connection as
+  `starrocks_version`, instead of `handle.server_version`, which held the MySQL protocol
+  version (8.0.33), so every version check returned false. Setting `version` in
+  `profiles.yml` no longer raises `AttributeError` when the connection opens.
+- `is_before_version` and `current_version` open the connection before reading the version,
+  so version checks also work on a thread whose connection hasn't run any SQL yet.
+- `_parse_version` now parses multi-digit version parts correctly (e.g. `3.5.14`, `4.0.10`) instead of reading single characters
 - `incremental` models in an external catalog build in the model's resolved schema, as `table`
   models do. With no `database` config they used the profile's schema, so a custom schema
   (`+schema` or `generate_schema_name`) was ignored while dbt reported the resolved one, and

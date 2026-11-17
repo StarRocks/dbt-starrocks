@@ -395,25 +395,29 @@ class StarRocksAdapter(SQLAdapter):
         )
         return table.where(_catalog_filter_schemas(used_schemas))
 
+    def _starrocks_version(self):
+        conn = self.connections.get_if_exists()
+        if not conn:
+            return None
+        # Reading handle resolves dbt's LazyHandle, so open() has set starrocks_version.
+        conn.handle
+        return getattr(conn, 'starrocks_version', None)
+
     @available
     def is_before_version(self, version: str) -> bool:
-        conn = self.connections.get_if_exists()
-        if conn:
-            server_version = conn.handle.server_version
-            server_version_tuple = tuple(server_version)
+        server_version = self._starrocks_version()
+        if server_version:
             version_detail_tuple = tuple(
                 int(part) for part in version.split(".") if part.isdigit())
-            if version_detail_tuple > server_version_tuple:
+            if version_detail_tuple > tuple(server_version):
                 return True
         return False
 
     @available
     def current_version(self):
-        conn = self.connections.get_if_exists()
-        if conn:
-            server_version = conn.handle.server_version
-            if server_version != (999, 999, 999):
-                return "{}.{}.{}".format(server_version[0], server_version[1], server_version[2])
+        server_version = self._starrocks_version()
+        if server_version and server_version != (999, 999, 999):
+            return "{}.{}.{}".format(server_version[0], server_version[1], server_version[2])
         return 'UNKNOWN'
 
     def _get_one_catalog(
