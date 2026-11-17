@@ -63,7 +63,7 @@ def dbt_profile_target(id_token_file):
 class TestOpenIDLogin:
     @pytest.fixture(scope="class")
     def models(self):
-        return {"openid_model.sql": "select 1 as id"}
+        return {"openid_model.sql": "{{ config(materialized='table') }} select 1 as id"}
 
     def test_dbt_run_as_token_user(self, project):
         user = project.run_sql("select current_user()", fetch="one")[0]
