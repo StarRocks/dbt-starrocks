@@ -107,6 +107,19 @@
     {# see starrocksAdapter.check_schema_exists() #}
 {% endmacro %}
 
+{#-- The key model of an OLAP table in default_catalog (DUP_KEYS, AGG_KEYS, UNIQUE_KEYS or
+     PRIMARY_KEYS), or none when information_schema.tables_config has no row for it. --#}
+{% macro starrocks__get_table_model(relation) -%}
+    {% call statement('get_table_model', fetch_result=True) %}
+        select TABLE_MODEL
+        from information_schema.tables_config
+        where TABLE_SCHEMA = '{{ relation.schema }}'
+          and TABLE_NAME = '{{ relation.identifier }}'
+    {% endcall %}
+    {%- set rows = load_result('get_table_model').table.rows -%}
+    {%- do return(rows[0][0] if rows | length > 0 else none) -%}
+{%- endmacro %}
+
 {% macro starrocks__list_schemas(database) -%}
     {% call statement('list_schemas', fetch_result=True, auto_begin=False) -%}
       select distinct schema_name from information_schema.schemata
