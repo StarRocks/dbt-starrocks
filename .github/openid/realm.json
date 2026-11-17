@@ -1,0 +1,27 @@
+{
+  "realm": "dbt",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "dbt-starrocks",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "dbt_user",
+      "enabled": true,
+      "email": "dbt_user@example.com",
+      "emailVerified": true,
+      "firstName": "dbt",
+      "lastName": "user",
+      "requiredActions": [],
+      "credentials": [
+        { "type": "password", "value": "dbt_password", "temporary": false }
+      ]
+    }
+  ]
+}

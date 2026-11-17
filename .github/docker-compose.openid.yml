@@ -1,0 +1,88 @@
+# Logs dbt into StarRocks with a Keycloak-issued ID token through a JWT
+# security integration. Run it with:
+#
+#   docker compose -f .github/docker-compose.openid.yml run --rm test
+#   docker compose -f .github/docker-compose.openid.yml down -v
+#
+# `run` starts keycloak and starrocks, waits for them to be healthy and for
+# starrocks-setup to finish, then runs tests/functional/adapter/test_openid_login.py
+# and exits with its code.
+#
+# Nothing is published on host ports; everything talks over the compose network.
+name: dbt-starrocks-openid
+
+services:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION:-26.6.1}
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+      # Fixes the token's `iss` claim no matter which address the token was
+      # requested on, so it always matches the integration's required_issuer.
+      KC_HOSTNAME: http://keycloak:8080
+    volumes:
+      - ./openid/realm.json:/opt/keycloak/data/import/realm.json:ro
+    healthcheck:
+      # The image has no curl or wget.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+  starrocks:
+    image: starrocks/allin1-ubuntu:${STARROCKS_VERSION:-4.1-latest}
+    hostname: starrocks
+    command: ["bash", "/openid/start-starrocks.sh"]
+    volumes:
+      - ./openid:/openid:ro
+      - certs:/certs
+    healthcheck:
+      test: 'mysql -u root -h 127.0.0.1 -P 9030 -e "SELECT 1"'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  starrocks-setup:
+    image: starrocks/allin1-ubuntu:${STARROCKS_VERSION:-4.1-latest}
+    depends_on:
+      starrocks:
+        condition: service_healthy
+    volumes:
+      - ./openid:/openid:ro
+    entrypoint: ["bash", "-c", "mysql -h starrocks -P 9030 -u root < /openid/setup.sql"]
+
+  test:
+    image: ghcr.io/astral-sh/uv:${UV_IMAGE_TAG:-python3.12-bookworm-slim}
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      starrocks-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ..:/src
+      - certs:/certs:ro
+    working_dir: /src
+    environment:
+      STARROCKS_HOST: starrocks
+      STARROCKS_PORT: "9030"
+      STARROCKS_CA: /certs/starrocks.pem
+      OPENID_TOKEN_URL: http://keycloak:8080/realms/dbt/protocol/openid-connect/token
+      OPENID_CLIENT_ID: dbt-starrocks
+      OPENID_USERNAME: dbt_user
+      OPENID_PASSWORD: dbt_password
+    # The container is thrown away after the run, so install into its system
+    # Python rather than a venv.
+    command:
+      - bash
+      - -c
+      - |
+        set -e
+        uv pip install --system --quiet -r dev_requirements.txt -e .
+        pytest -p no:cacheprovider tests/functional/adapter/test_openid_login.py
+
+volumes:
+  certs:
