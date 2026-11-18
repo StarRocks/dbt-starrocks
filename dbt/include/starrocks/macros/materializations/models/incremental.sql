@@ -148,6 +148,9 @@
         {%- endcall -%}
 
         {%- do starrocks__exchange_relation(target_relation, backup_relation) -%}
+
+        {#-- Drop the backup table after successful exchange --#}
+        {%- do adapter.drop_relation(backup_relation) -%}
     {% else %}
         {%- if not is_external -%}
             {%- do starrocks__validate_incremental_target_table_type(incremental_strategy, existing_relation) -%}
