@@ -100,14 +100,18 @@ class TestViewSkipWhenUnchanged:
         mv_active_checker_interval_seconds) reactivates an inactive MV whose
         base is still schema-compatible. If it runs between a view rebuild and
         the is_active query, the "MV went inactive" assertions see 'true'.
+
+        The setting is FE-wide, so teardown restores the value found here
+        rather than assuming the default.
         """
-        project.run_sql(
-            "ADMIN SET FRONTEND CONFIG ('enable_mv_automatic_active_check' = 'false')"
-        )
+        key = "enable_mv_automatic_active_check"
+        # Columns: Key, AliasNames, Value, Type, IsMutable, Comment
+        previous = project.run_sql(
+            f"ADMIN SHOW FRONTEND CONFIG LIKE '{key}'", fetch="one"
+        )[2]
+        project.run_sql(f"ADMIN SET FRONTEND CONFIG ('{key}' = 'false')")
         yield
-        project.run_sql(
-            "ADMIN SET FRONTEND CONFIG ('enable_mv_automatic_active_check' = 'true')"
-        )
+        project.run_sql(f"ADMIN SET FRONTEND CONFIG ('{key}' = '{previous}')")
 
     @pytest.fixture(scope="class")
     def my_view(self, project):
