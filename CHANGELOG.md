@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - dbt's warnings for unsupported and unenforced constraints on contracted tables
 - `primary_key` constraints (column- or model-level) on contracted models automatically derive a `PRIMARY KEY` table type and key columns
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
+- `on_table_exists='swap'` option for table materialization: the new table is built as `<name>__dbt_tmp`
+  and exchanged with `ALTER TABLE ... SWAP WITH`, so a failing build leaves the existing table in place (#49)
 - `append` and `merge` incremental strategies. `append` is the explicit name for a plain
   `INSERT INTO` into a DUPLICATE KEY table. `merge` upserts into a PRIMARY KEY table, built
   from `unique_key`, from `table_type='PRIMARY'` with `keys`, or from a contract
