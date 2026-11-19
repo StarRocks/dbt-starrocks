@@ -26,11 +26,6 @@ jobs:
       - name: Install Python
         run: uv venv --python ${{ matrix.python-version }}
 
-      - name: Install MySQL client
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mysql-client=8.0*
-
       - name: Install dependencies
         run: |
           source .venv/bin/activate
@@ -42,21 +37,25 @@ jobs:
         env:
           STARROCKS_VERSION: ${{ matrix.starrocks-version }}
 
+      # Run SQL with the mysql client bundled in the StarRocks image, so the
+      # runner doesn't need its own (Ubuntu 26.04 dropped mysql-client 8.0).
       - name: Configure StarRocks and create Iceberg catalog
         run: |
-          mysql -h 127.0.0.1 -P 9030 -u root -e "ADMIN SET FRONTEND CONFIG ('default_replication_num' = '1');"
-          mysql -h 127.0.0.1 -P 9030 -u root -e "
-            CREATE EXTERNAL CATALOG iceberg_catalog
-            PROPERTIES (
-              'type'='iceberg',
-              'iceberg.catalog.type'='rest',
-              'iceberg.catalog.uri'='http://iceberg-rest:8181',
-              'iceberg.catalog.warehouse'='warehouse',
-              'aws.s3.access_key'='admin',
-              'aws.s3.secret_key'='password',
-              'aws.s3.endpoint'='http://s3:9000',
-              'aws.s3.enable_path_style_access'='true'
-            );"
+          docker compose -f .github/docker-compose.iceberg.yml exec -T starrocks \
+            mysql -h 127.0.0.1 -P 9030 -u root <<'SQL'
+          ADMIN SET FRONTEND CONFIG ('default_replication_num' = '1');
+          CREATE EXTERNAL CATALOG iceberg_catalog
+          PROPERTIES (
+            'type'='iceberg',
+            'iceberg.catalog.type'='rest',
+            'iceberg.catalog.uri'='http://iceberg-rest:8181',
+            'iceberg.catalog.warehouse'='warehouse',
+            'aws.s3.access_key'='admin',
+            'aws.s3.secret_key'='password',
+            'aws.s3.endpoint'='http://s3:9000',
+            'aws.s3.enable_path_style_access'='true'
+          );
+          SQL
 
       - name: Run unit tests
         run: |

@@ -14,8 +14,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `table_type` config is now case-insensitive (`'duplicate'`, `'primary'`, `'unique'` are all accepted)
 - `on_table_exists='swap'` option for table materialization: the new table is built as `<name>__dbt_tmp`
   and exchanged with `ALTER TABLE ... SWAP WITH`, so a failing build leaves the existing table in place (#49)
+- `append` and `merge` incremental strategies. `append` is the explicit name for a plain
+  `INSERT INTO` into a DUPLICATE KEY table. `merge` upserts into a PRIMARY KEY table, built
+  from `unique_key`, from `table_type='PRIMARY'` with `keys`, or from a contract
+  `primary_key` constraint; an existing UNIQUE KEY table is accepted too. Neither is
+  supported in a configuration where the name would be misleading: `append` fails on a
+  PRIMARY or UNIQUE KEY table, where the insert would upsert, and `merge` fails on any other
+  table type and in external catalogs. `merge` raises on `merge_update_columns`,
+  `merge_exclude_columns` and `incremental_predicates`, which need a `MERGE` statement.
+- `append` and `merge` check the existing table's key type on each incremental run, so a
+  table built before its key config changed fails with a pointer to `--full-refresh`
+  instead of silently appending or upserting.
+
+### Changed
+- `incremental_strategy='default'`, which is also used when `incremental_strategy` is not
+  set, will be deprecated in a future release. It is still fully supported; each run now
+  logs an info-level notice. Its effect depends on the table type (it upserts into PRIMARY
+  KEY tables and appends to DUPLICATE KEY tables), so prefer `merge` or `append`, which
+  run the same SQL.
+
+### Changed
+- Version-gated configs now fail at compile time on StarRocks versions that don't support
+  them, as intended: `dynamic_overwrite` before 3.4, a table or materialized view without
+  `distributed_by` before 3.1, and `distributed_by` without `buckets` before 2.5.7.
+  Previously these checks never fired (see below), so such models reached StarRocks and
+  failed there with a database error.
 
 ### Fixed
+- StarRocks version detection with mysql-connector-python 9.3.0 and later, where
+  `server_version` is a read-only property. `is_before_version` and `current_version` read
+  the version from `select current_version()`, stored on the connection as
+  `starrocks_version`, instead of `handle.server_version`, which held the MySQL protocol
+  version (8.0.33), so every version check returned false. Setting `version` in
+  `profiles.yml` no longer raises `AttributeError` when the connection opens.
+- `is_before_version` and `current_version` open the connection before reading the version,
+  so version checks also work on a thread whose connection hasn't run any SQL yet.
+- `_parse_version` now parses multi-digit version parts correctly (e.g. `3.5.14`, `4.0.10`) instead of reading single characters
 - `incremental` models in an external catalog build in the model's resolved schema, as `table`
   models do. With no `database` config they used the profile's schema, so a custom schema
   (`+schema` or `generate_schema_name`) was ignored while dbt reported the resolved one, and

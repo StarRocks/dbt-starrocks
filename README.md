@@ -84,6 +84,25 @@ starrocks:
 | poll_interval       | Base delay in seconds between task status polls                    | Optional  | `1`                            |
 | poll_max_delay      | Maximum delay cap in seconds for task polling                      | Optional  | `600`                          |
 | poll_factor         | Growth multiplier for exponential backoff between polls            | Optional  | `2.0`                          |
+| auth_plugin         | MySQL client authentication plugin to use                          | Optional  | `authentication_openid_connect_client` |
+| openid_token_file   | Path to a file holding an OpenID Connect ID token, read by the `authentication_openid_connect_client` plugin | Optional  | `/tmp/starrocks.jwt` |
+| ssl_ca              | CA bundle to trust for the FE's certificate, on top of the system store | Optional  | `/path/to/private-ca.pem`      |
+| ssl_verify_cert     | Verify the FE's certificate chain                                  | Optional  | `true`                         |
+| ssl_verify_identity | Also check that the certificate matches `host`                     | Optional  | `true`                         |
+
+To log in with an OpenID Connect ID token through a StarRocks JWT security integration, set `auth_plugin` to `authentication_openid_connect_client` and point `openid_token_file` at a file holding the token. This needs mysql-connector-python 9.1 or later. `password` is not used.
+
+The plugin refuses to send the token over a plaintext connection, so the FE needs SSL enabled. Without `ssl_verify_cert`, mysql-connector-python encrypts the connection but does not verify the FE's certificate, so anyone who can impersonate the FE can capture and replay the token. Set `ssl_verify_cert: true`, and `ssl_verify_identity: true` when `host` matches a name on the certificate. With `use_pure`, the connector always trusts the system CA store and `ssl_ca` adds a private CA to it. With `threads` above 1, set `use_pure: "true"`: concurrent logins through the C extension's plugin crashed dbt in our testing (`malloc(): unaligned tcache chunk detected`), and the pure-Python plugin did not.
+
+```yaml
+      username: your_starrocks_username
+      password: ''
+      auth_plugin: authentication_openid_connect_client
+      openid_token_file: /path/to/id_token.jwt
+      ssl_verify_cert: true
+      ssl_verify_identity: true
+      use_pure: "true"
+```
 
 More details about setting `use_pure` and other connection arguments [here](https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html)
 
@@ -112,8 +131,10 @@ models:
   on_view_exists: 'replace'             // only for view: use CREATE OR REPLACE VIEW instead of DROP + CREATE
   on_table_exists: 'swap'               // only for table: build <name>__dbt_tmp and ALTER TABLE ... SWAP WITH it, instead of DROP + CREATE. Supported values: ['replace' (default), 'swap', 'append', 'ignore']
 
-  // For 'materialized=incremental' in version >= 3.4
-  incremental_strategy: 'dynamic_overwrite' // Supported values: ['default', 'insert_overwrite', 'dynamic_overwrite']
+  // For 'materialized=incremental'
+  incremental_strategy: 'merge'           // Supported values: ['default', 'append', 'merge', 'insert_overwrite', 'dynamic_overwrite', 'microbatch'] ('default' will be deprecated)
+  unique_key: ['id']                      // Makes the table PRIMARY KEY, as 'merge' requires; not allowed with 'append'
+  // 'insert_overwrite' and 'dynamic_overwrite' require version >= 3.4
 
   // For 'materialized=incremental' and 'incremental_strategy=microbatch'
   event_time: 'some_timestamp_column'     // The column name of the event time
@@ -132,8 +153,10 @@ models:
 {{ config(materialized='table', on_table_exists='swap') }}
 {{ config(materialized='table', indexs=[{ 'columns': 'idx_column' }]) }}
 {{ config(materialized='table', partition_by=['date_trunc("day", first_order)'], partition_type='Expr') }}
-{{ config(materialized='table', table_type='PRIMARY', keys=['customer_id'], order_by=['first_name', 'last_name'] }}
-{{ config(materialized='incremental', table_type='PRIMARY', engine='OLAP', buckets=32, distributed_by=['id']) }}
+{{ config(materialized='table', table_type='PRIMARY', keys=['customer_id'], order_by=['first_name', 'last_name']) }}
+{{ config(materialized='incremental', table_type='PRIMARY', keys=['id'], engine='OLAP', buckets=32, distributed_by=['id']) }}
+{{ config(materialized='incremental', incremental_strategy='merge', unique_key=['id']) }}
+{{ config(materialized='incremental', incremental_strategy='append') }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='dynamic_overwrite') }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='report_day', begin='2025-01-01', lookback=1, batch_size='day') }}
 {{ config(materialized='incremental', partition_by=['my_partition_key'], partition_type='Expr', incremental_strategy='microbatch', event_time='report_day', begin='2025-01-01', lookback=1, batch_size='day', microbatch_use_dynamic_overwrite=true) }}
@@ -193,11 +216,63 @@ leave the others in place, so they behave alike there; the difference between th
 to OLAP tables. Row-level `unique_key` semantics would need `DELETE` on Iceberg, which
 StarRocks only writes position delete files for from 4.1 onwards.
 
-## Dynamic Overwrite (StarRocks >= 3.4)
-Add a new `incremental_strategy` property that supports the following values:
-- `default` (or omitted): Standard inserts without `overwrite`.
-- `insert_overwrite`: Will apply `overwrite` with `dynamic_overwrite = false` to the inserts.
-- `dynamic_overwrite`: Will apply `overwrite` with `dynamic_overwrite = true` to the inserts.
+## Incremental strategies
+The `incremental_strategy` config supports the following values:
+
+- `append`: Plain `INSERT INTO`. Rows are added; nothing is deduplicated or replaced.
+  Requires a DUPLICATE KEY table, so `unique_key` cannot be set.
+- `merge`: Upsert on the table's PRIMARY KEY. Requires a PRIMARY KEY table: set `unique_key`,
+  `table_type='PRIMARY'` with `keys`, or an enforced contract with a `primary_key` constraint.
+- `insert_overwrite`: Applies `overwrite` with `dynamic_overwrite = false` (StarRocks >= 3.4).
+- `dynamic_overwrite`: Applies `overwrite` with `dynamic_overwrite = true` (StarRocks >= 3.4).
+- `microbatch`: Processes the model in time-based batches; see the microbatch configs above.
+- `default` (or omitted): Behaviour depends on the table type. **Will be deprecated** in a
+  future release; see below.
+
+`append` and `merge` check the existing table's key type on every incremental run. If the
+model's config changed since the table was built (for example, `unique_key` was added),
+the run fails until you rebuild the table with `dbt run --full-refresh`.
+
+### How `merge` works
+StarRocks has no `MERGE` statement. Instead, setting `unique_key` on an incremental model
+builds the target as a [PRIMARY KEY table](https://docs.starrocks.io/docs/table_design/table_types/primary_key_table/)
+keyed on those columns, where an ordinary `INSERT INTO` *is* an upsert: matching keys are
+replaced, new keys are inserted.
+
+How this differs from `merge` on other dbt adapters:
+
+- Rows are matched on the table's PRIMARY KEY, which is set when the table is created.
+  Changing `unique_key` (or `keys`) on an existing model does not change it: incremental runs
+  keep upserting on the old key, so rows that differ only in a newly added key column
+  overwrite each other. Rebuild the table with `dbt run --full-refresh`, or migrate its key
+  outside dbt, whenever the key changes.
+- If the new data contains several rows with the same key, one of them is kept and the rest
+  are dropped without an error, where a `MERGE` on Snowflake, BigQuery or Postgres fails.
+  Deduplicate in the model if that matters.
+- The columns the model produces are written. Columns the table has but the model no longer
+  produces (for example after `on_schema_change` changes) keep their existing values on
+  StarRocks >= 3.3.1, and are reset to their defaults on earlier versions. `merge_update_columns`, `merge_exclude_columns` and
+  `incremental_predicates` need a `MERGE` statement, which StarRocks does not have, so they
+  raise an error rather than being silently ignored.
+- On a partitioned table, StarRocks requires the partition column to be part of the primary
+  key, so `unique_key` must include your `partition_by` column.
+- An existing UNIQUE KEY table, which dbt cannot create but may have been created outside
+  it, is accepted too: an `INSERT` replaces its rows by key in the same way.
+
+`merge` is not supported for models in an external catalog, whose tables have no PRIMARY KEY.
+
+### `default` will be deprecated
+`default`, which is also what you get when `incremental_strategy` is not set, runs a plain
+`INSERT INTO` whose effect depends on the table type: it upserts into a PRIMARY KEY table and
+appends to a DUPLICATE KEY table. It is still fully supported, and each run logs a notice
+that it will be deprecated in a future release. To prepare, switch to the explicit strategy
+for your table, which runs the same SQL:
+
+| Table built by the model | Use |
+|---|---|
+| PRIMARY KEY (`unique_key`, `table_type='PRIMARY'` with `keys`, or a contract `primary_key`) | `merge` |
+| DUPLICATE KEY (the default table type) | `append` |
+| External catalog | `append` |
 
 For more details on the different behaviors, see [StarRocks' documentation for INSERT](https://docs.starrocks.io/docs/sql-reference/sql-statements/loading_unloading/INSERT).
 

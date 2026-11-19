@@ -14,6 +14,21 @@
  * limitations under the License.
  */
 
+{%- macro starrocks__get_incremental_merge_sql(arg_dict) -%}
+    {#--
+        StarRocks has no MERGE statement. INSERT INTO a PRIMARY KEY table is itself an
+        upsert on that key, so the merge is expressed as a plain insert. The PRIMARY KEY
+        comes from `unique_key` when the table is created (see starrocks__olap_table).
+    --#}
+    {%- do return(get_incremental_append_sql(arg_dict)) -%}
+{%- endmacro -%}
+
+{%- macro starrocks__get_incremental_default_sql(arg_dict) -%}
+    {#-- Slated for deprecation (see starrocks__log_default_strategy_notice): a plain
+         INSERT INTO, whose effect depends on the table type. --#}
+    {%- do return(get_incremental_append_sql(arg_dict)) -%}
+{%- endmacro -%}
+
 {%- macro get_incremental_insert_overwrite_sql(arg_dict) -%}
     {%- do return(get_insert_overwrite_into_sql(arg_dict["target_relation"], arg_dict["temp_relation"], arg_dict["dest_columns"])) -%}
 {%- endmacro -%}
@@ -59,7 +74,7 @@
 {%- endmacro -%}
 
 {%- materialization incremental, adapter='starrocks' -%}
-    {%- set keys = config.get('keys', validator=validation.any[list]) -%}
+    {%- set unique_key = starrocks__get_incremental_unique_key(config) -%}
     {%- set full_refresh_mode = (should_full_refresh()) -%}
     {%- set identifier = this.name -%}
     {%- set target_relation = api.Relation.create(
@@ -93,7 +108,7 @@
     {%- endif -%}
 
     {%- set existing_relation = load_relation(target_relation) -%}
-    {%- set incremental_strategy = starrocks__validate_get_incremental_strategy(config) -%}
+    {%- set incremental_strategy = starrocks__validate_get_incremental_strategy(config, is_external) -%}
 
     {{ drop_relation_if_exists(tmp_relation) }}
 
@@ -134,6 +149,10 @@
 
         {%- do starrocks__exchange_relation(target_relation, backup_relation) -%}
     {% else %}
+        {%- if not is_external -%}
+            {%- do starrocks__validate_incremental_target_table_type(incremental_strategy, existing_relation) -%}
+        {%- endif -%}
+
         {#-- Create the temp relation, either as a view or as a temp table --#}
         {%- call statement('create_tmp_relation') -%}
             {{ starrocks__create_table_as(True, tmp_relation, compiled_code, is_external) }}
@@ -152,7 +171,7 @@
         {#-- Get the incremental_strategy, the macro to use for the strategy, and build the sql --#}
         {%- set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) -%}
         {%- set strategy_sql_macro_func = adapter.get_incremental_strategy_macro(context, incremental_strategy) -%}
-        {%- set strategy_arg_dict = ({'target_relation': target_relation, 'temp_relation': tmp_relation, 'unique_key': keys, 'dest_columns': dest_columns, 'incremental_predicates': incremental_predicates }) -%}
+        {%- set strategy_arg_dict = ({'target_relation': target_relation, 'temp_relation': tmp_relation, 'unique_key': unique_key, 'dest_columns': dest_columns, 'incremental_predicates': incremental_predicates }) -%}
 
         {%- call statement('main') -%}
             {{ strategy_sql_macro_func(strategy_arg_dict) }}

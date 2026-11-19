@@ -52,6 +52,10 @@ class StarRocksCredentials(Credentials):
     poll_max_delay: Optional[int] = 600
     poll_factor: Optional[float] = 2.0
     auth_plugin: Optional[str] = ''
+    openid_token_file: Optional[str] = None
+    ssl_ca: Optional[str] = None
+    ssl_verify_cert: Optional[bool] = None
+    ssl_verify_identity: Optional[bool] = None
     
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -95,20 +99,25 @@ class StarRocksCredentials(Credentials):
             "poll_max_delay",
             "poll_factor",
             "auth_plugin",
+            "openid_token_file",
+            "ssl_ca",
+            "ssl_verify_cert",
+            "ssl_verify_identity",
         )
 
 
 def _parse_version(result):
     default_version = (999, 999, 999)
-    first_part = None
+    first_part = result
 
     if '-' in result:
         first_part = result.split('-')[0]
     if ' ' in result:
         first_part = result.split(' ')[0]
 
-    if first_part and len(first_part.split('.')) == 3:
-        return int(first_part[0]), int(first_part[2]), int(first_part[4])
+    parts = first_part.split('.')
+    if len(parts) == 3 and all(part.isdigit() for part in parts):
+        return int(parts[0]), int(parts[1]), int(parts[2])
 
     return default_version
 
@@ -166,6 +175,20 @@ class StarRocksConnectionManager(SQLConnectionManager):
 
         kwargs["buffered"] = True
 
+        # mysql-connector-python reads the ID token for its
+        # authentication_openid_connect_client plugin from this file.
+        if credentials.openid_token_file:
+            kwargs["openid_token_file"] = credentials.openid_token_file
+
+        # Unset, mysql-connector-python encrypts but does not verify the FE's
+        # certificate. Profiles that send a bearer token can opt in here.
+        if credentials.ssl_ca:
+            kwargs["ssl_ca"] = credentials.ssl_ca
+        for option in ("ssl_verify_cert", "ssl_verify_identity"):
+            value = getattr(credentials, option)
+            if value is not None:
+                kwargs[option] = value
+
         if credentials.port:
             kwargs["port"] = credentials.port
 
@@ -206,22 +229,23 @@ class StarRocksConnectionManager(SQLConnectionManager):
 
                 raise dbt_common.exceptions.ConnectionError(str(e))
 
+        # Stored on the connection rather than handle.server_version, which holds the
+        # MySQL protocol version, not the StarRocks version.
         if credentials.version is None:
             cursor = connection.handle.cursor()
             try:
                 cursor.execute("select current_version()")
-                connection.handle.server_version = _parse_version(
-                    cursor.fetchone()[0])
+                connection.starrocks_version = _parse_version(cursor.fetchone()[0])
             except Exception as e:
                 logger.debug(
                     "Got an error when obtain StarRocks version exception: '{}'".format(e))
         else:
             version = credentials.version.strip().split('.')
             if len(version) == 3:
-                connection.handle.server_version = (
+                connection.starrocks_version = (
                     int(version[0]), int(version[1]), int(version[2]))
             elif len(version) == 2:
-                connection.handle.server_version = (
+                connection.starrocks_version = (
                     int(version[0]), int(version[1]), 0)
             else:
                 logger.debug("Config version '{}' is invalid".format(version))
