@@ -91,6 +91,24 @@ class TestViewSkipWhenUnchanged:
             "my_mv_on_view.sql": MY_MV_ON_MY_VIEW_SQL,
         }
 
+    @pytest.fixture(scope="class", autouse=True)
+    def disable_mv_active_checker(self, project):
+        """
+        Pause the FE's background MV reactivation for this class.
+
+        The checker (enable_mv_automatic_active_check, run every
+        mv_active_checker_interval_seconds) reactivates an inactive MV whose
+        base is still schema-compatible. If it runs between a view rebuild and
+        the is_active query, the "MV went inactive" assertions see 'true'.
+        """
+        project.run_sql(
+            "ADMIN SET FRONTEND CONFIG ('enable_mv_automatic_active_check' = 'false')"
+        )
+        yield
+        project.run_sql(
+            "ADMIN SET FRONTEND CONFIG ('enable_mv_automatic_active_check' = 'true')"
+        )
+
     @pytest.fixture(scope="class")
     def my_view(self, project):
         return project.adapter.Relation.create(
