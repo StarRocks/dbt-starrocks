@@ -61,6 +61,11 @@ def _external_catalog(database: Optional[str]) -> Optional[str]:
 
 SUBMIT_TASK_TEMPLATE = "submit /*+set_var(query_timeout={timeout})*/ task {task_id} as {sql}"
 POLL_TASK_TEMPLATE = "select * from information_schema.task_runs where task_name = '{task_id}'"
+# A submitted run can briefly vanish from information_schema.task_runs (e.g.
+# while moving from PENDING to RUNNING), so a missing row is retried this many
+# times, MISSING_RUN_RETRY_DELAY seconds apart, before giving up.
+MISSING_RUN_MAX_RETRIES = 10
+MISSING_RUN_RETRY_DELAY = 0.5
 
 class StarRocksConfig(AdapterConfig):
     engine: Optional[str] = None
@@ -164,6 +169,7 @@ class StarRocksAdapter(SQLAdapter):
         _poll_sql = POLL_TASK_TEMPLATE.format(task_id=task_id)
         _connection = self.connections.get_if_exists() or self.connections.begin()
         _attempts = 1
+        _missing_polls = 0
 
         while True:
 
@@ -179,10 +185,19 @@ class StarRocksAdapter(SQLAdapter):
                 )
                 return response, task_run_status
 
-            # Check if we got any results
+            # The run can be missing for a moment between states. Never treat
+            # that as completion: retry briefly, then fail.
             if not task_run_status or len(task_run_status) == 0:
-                logger.info(f"Task {task_id} not found. Aborting...")
-                return response, task_run_status
+                _missing_polls += 1
+                if _missing_polls > MISSING_RUN_MAX_RETRIES:
+                    raise dbt.exceptions.DbtRuntimeError(
+                        f"Task [{task_id}] was submitted but its run was not found in "
+                        f"information_schema.task_runs after {MISSING_RUN_MAX_RETRIES} retries"
+                    )
+                logger.debug(f"Task {task_id} not found in task_runs yet. Retrying...")
+                time.sleep(MISSING_RUN_RETRY_DELAY)
+                continue
+            _missing_polls = 0
 
             # Validate status
             status = task_run_status[0].get("STATE", "unknown")

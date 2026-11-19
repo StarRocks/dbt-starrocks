@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   models do. With no `database` config they used the profile's schema, so a custom schema
   (`+schema` or `generate_schema_name`) was ignored while dbt reported the resolved one, and
   anything that refs the model looked in the wrong schema (#132).
+- With `is_async: true`, a submitted task whose run briefly disappears from
+  `information_schema.task_runs` (seen on 3.5 between `PENDING` and `RUNNING`) no longer
+  counts as finished. The poller retries a missing run and fails the model if it stays
+  missing. Before, dbt moved on while the task was still running, so a table model could
+  end up empty.
 
 ## [1.12.2] - 2026-09-15
 
