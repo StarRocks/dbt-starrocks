@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   failed there with a database error.
 
 ### Fixed
+- Relations in an external catalog with a dotted (nested Iceberg) namespace, such as
+  `bronze.nz_stats.census`, render the namespace as one quoted name:
+  `` `iceberg_catalog`.`bronze.nz_stats.census`.`my_table` ``. The namespace was split on `.`
+  and everything after its second part was dropped, so `source()` and the table
+  materialization's create and drop statements addressed the wrong database. Without a
+  catalog, a dotted schema is still read as `catalog.database`, now split on the first `.`
+  only (#142).
+- `drop_schema` on a relation in an external catalog no longer fails with `TypeError`.
 - StarRocks version detection with mysql-connector-python 9.3.0 and later, where
   `server_version` is a read-only property. `is_before_version` and `current_version` read
   the version from `select current_version()`, stored on the connection as
