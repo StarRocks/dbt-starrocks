@@ -77,9 +77,13 @@ class TestNestedNamespaceTable:
         results = run_dbt(["seed"])
         assert len(results) == 1
 
-        # Build the nested table first: dbt doesn't order a model after a source
-        results = run_dbt(["run", "--select", "nested_table"])
-        assert len(results) == 1
+        # Build the nested table first: dbt doesn't order a model after a source.
+        # The second run has to find the existing table, which needs the catalog's
+        # `iceberg.catalog.rest.nested-namespace-enabled` (see ci.yml); without it
+        # the table is invisible and the rerun fails with "already exists".
+        for _ in range(2):
+            results = run_dbt(["run", "--select", "nested_table"])
+            assert len(results) == 1
 
         results = run_dbt(["run", "--select", "downstream"])
         assert len(results) == 1
