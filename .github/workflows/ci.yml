@@ -76,15 +76,39 @@ jobs:
         if: always()
         run: docker compose -f .github/docker-compose.iceberg.yml down -v
 
+  # One StarRocks version and Python, in containers: logs in through a JWT
+  # security integration with a Keycloak-issued ID token.
+  openid-test:
+    name: OpenID login
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Run OpenID login test
+        run: docker compose -f .github/docker-compose.openid.yml run --rm test
+
+      - name: Show service logs
+        if: failure()
+        run: docker compose -f .github/docker-compose.openid.yml logs --tail 200
+
+      - name: Stop OpenID stack
+        if: always()
+        run: docker compose -f .github/docker-compose.openid.yml down -v
+
   ci:
     name: CI
     runs-on: ubuntu-latest
     if: always()
-    needs: [integration-test]
+    needs: [integration-test, openid-test]
     steps:
-      - name: Check matrix results
+      - name: Check results
         run: |
           if [ "${{ needs.integration-test.result }}" != "success" ]; then
             echo "Integration tests failed"
+            exit 1
+          fi
+          if [ "${{ needs.openid-test.result }}" != "success" ]; then
+            echo "OpenID login test failed"
             exit 1
           fi
