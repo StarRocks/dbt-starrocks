@@ -63,21 +63,24 @@ class StarRocksRelation(BaseRelation):
         default_factory=lambda: StarRocksQuotePolicy())
     quote_character: str = "`"
 
+    def _quote_name(self, name):
+        """Quote a single name as-is, even if it contains dots."""
+        return "{quote_char}{name}{quote_char}".format(
+            quote_char=self.quote_character,
+            name=name,
+        )
+
     def quoted(self, identifier):
+        # Without a separate catalog, a dotted schema is read as `catalog.db`.
+        # Split on the first dot only: everything after it is the database,
+        # which may itself be dotted (e.g. a nested Iceberg namespace).
         if '.' in identifier:
-            catalog_db = identifier.split('.')
-            catalog = catalog_db[0]
-            db = catalog_db[1]
-            return "{quote_char}{catalog}{quote_char}.{quote_char}{db}{quote_char}".format(
-                quote_char=self.quote_character,
-                catalog=catalog,
-                db=db
+            catalog, db = identifier.split('.', 1)
+            return "{catalog}.{db}".format(
+                catalog=self._quote_name(catalog),
+                db=self._quote_name(db),
             )
-        else:
-            return "{quote_char}{identifier}{quote_char}".format(
-                quote_char=self.quote_character,
-                identifier=identifier,
-            )
+        return self._quote_name(identifier)
 
     @property
     def is_materialized_view(self) -> bool:
@@ -85,11 +88,11 @@ class StarRocksRelation(BaseRelation):
 
     def render(self):
         if self.database is not None:
-            return "{catalog}.{database}.{table}".format(
-                catalog=self.quoted(self.database),
-                database=self.quoted(self.schema),
-                table=self.quoted(self.identifier)
-            )
+            # The catalog is known, so each part is a single name. Dots inside
+            # the schema are part of the database name (nested Iceberg
+            # namespaces such as `bronze.nz_stats.census`), not separators.
+            parts = (self.database, self.schema, self.identifier)
+            return ".".join(self._quote_name(p) for p in parts if p is not None)
         if self.include_policy.database and self.include_policy.schema:
             raise DbtRuntimeError(
                 "Got a StarRocks relation with schema and database set to include, but only one can be set"

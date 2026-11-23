@@ -204,6 +204,12 @@ use the model's resolved schema, as models in `default_catalog` do: the profile'
 ```
 The table name comes from the model's file name (or its `alias`), not from `database`.
 
+A nested Iceberg namespace is one dotted database name, e.g. `database='bronze.sales'`. On an
+Iceberg REST catalog, set `'iceberg.catalog.rest.nested-namespace-enabled'='true'` when you
+create the catalog. It defaults to `false`, which hides nested namespaces from
+`information_schema`: dbt can't see tables that already exist in them, and the next run fails
+with `Table ... already exists`.
+
 Only `partition_by`, `partition_type` (defaulting to `Expr`), `partition_by_init` and
 `properties` are applied to external tables. `table_type`, `keys`, `distributed_by`,
 `buckets` and `order_by` describe OLAP tables and are ignored here — Iceberg rejects key

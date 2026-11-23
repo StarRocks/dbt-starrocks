@@ -50,6 +50,8 @@ jobs:
             'iceberg.catalog.type'='rest',
             'iceberg.catalog.uri'='http://iceberg-rest:8181',
             'iceberg.catalog.warehouse'='warehouse',
+            -- Lists nested namespaces, so dbt sees tables in them (test_nested_namespace.py)
+            'iceberg.catalog.rest.nested-namespace-enabled'='true',
             'aws.s3.access_key'='admin',
             'aws.s3.secret_key'='password',
             'aws.s3.endpoint'='http://s3:9000',
